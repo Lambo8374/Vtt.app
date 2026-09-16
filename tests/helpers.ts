@@ -2,15 +2,15 @@ import { EARTH_RADIUS } from '../src/core/geo';
 import type { TrackPoint } from '../src/core/types';
 
 /**
- * Metres par degre sur la sphere de reference utilisee par `geo.ts`.
+ * Mètres par degré sur la sphère de référence utilisée par `geo.ts`.
  *
  * Il est essentiel de partager cette constante avec le code teste : une
- * approximation differente (111 132 m au lieu de 111 195) introduirait un
- * ecart de 0,06 % qu'on prendrait a tort pour un defaut de l'algorithme.
+ * approximation différente (111 132 m au lieu de 111 195) introduirait un
+ * écart de 0,06 % qu'on prendrait à tort pour un défaut de l'algorithme.
  */
 export const M_PER_DEG_LAT = (EARTH_RADIUS * Math.PI) / 180;
 
-/** Generateur pseudo-aleatoire deterministe (mulberry32), pour des tests reproductibles. */
+/** Générateur pseudo-aléatoire déterministe (mulberry32), pour des tests reproductibles. */
 export function rng(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -31,24 +31,24 @@ export interface SyntheticOptions {
   count: number;
   /** Intervalle entre deux points, en secondes. */
   interval?: number;
-  /** Vitesse de deplacement, en m/s. */
+  /** Vitesse de déplacement, en m/s. */
   speed?: number;
-  /** Altitude au depart, en metres. */
+  /** Altitude au départ, en mètres. */
   startEle?: number;
-  /** Denivele total a repartir lineairement, en metres. */
+  /** Dénivelé total a répartir linéairement, en mètres. */
   elevationGain?: number;
-  /** Amplitude du bruit d'altitude, en metres. */
+  /** Amplitude du bruit d'altitude, en mètres. */
   eleNoise?: number;
-  /** Amplitude du bruit de position, en metres. */
+  /** Amplitude du bruit de position, en mètres. */
   posNoise?: number;
-  /** Precision annoncee, en metres. */
+  /** Précision annoncée, en mètres. */
   accuracy?: number;
   seed?: number;
 }
 
 /**
- * Fabrique une trace synthetique : trajet plein nord a vitesse constante,
- * avec bruit controle sur la position et l'altitude.
+ * Fabrique une trace synthétique : trajet plein nord a vitesse constante,
+ * avec bruit contrôle sur la position et l'altitude.
  */
 export function syntheticTrack(opts: SyntheticOptions): TrackPoint[] {
   const {
@@ -79,7 +79,7 @@ export function syntheticTrack(opts: SyntheticOptions): TrackPoint[] {
   return out;
 }
 
-/** Somme naive des deltas positifs : la methode incorrecte, gardee comme temoin. */
+/** Somme naïve des deltas positifs : la méthode incorrecte, gardée comme témoin. */
 export function naiveAscent(eles: number[]): number {
   let sum = 0;
   for (let i = 1; i < eles.length; i++) {

@@ -1,20 +1,20 @@
 import type { RoutePoint } from './types';
 
 /**
- * Resolution d'altitude pour les circuits traces a la main.
+ * Résolution d'altitude pour les circuits traces à la main.
  *
- * Un circuit dessine sur la carte n'a aucune altitude : il faut interroger un
- * modele numerique de terrain. Le service public par defaut est limite en
- * debit (voir `PROVIDERS`), donc on met en cache, on regroupe les requetes par
- * lots et on echantillonne : interroger le DEM tous les 25 m n'apporte rien,
- * la resolution du SRTM etant de 30 m.
+ * Un circuit dessiné sur la carte n'a aucune altitude : il faut interroger un
+ * modèle numérique de terrain. Le service public par défaut est limite en
+ * debit (voir `PROVIDERS`), donc on met en cache, on regroupe les requêtes par
+ * lots et on échantillonne : interroger le DEM tous les 25 m n'apporte rien,
+ * la résolution du SRTM étant de 30 m.
  */
 
 export interface ElevationProvider {
   name: string;
-  /** Nombre maximal de coordonnees par requete. */
+  /** Nombre maximal de coordonnées par requête. */
   batchSize: number;
-  /** Delai minimal entre deux requetes, en ms. */
+  /** Délai minimal entre deux requêtes, en ms. */
   minInterval: number;
   buildUrl(batch: Array<{ lat: number; lon: number }>): string;
   parse(json: unknown): Array<number | null>;
@@ -36,12 +36,12 @@ export const PROVIDERS: Record<string, ElevationProvider> = {
     },
   },
   open_elevation: {
-    name: 'Open-Elevation',
+    name: 'Open-Élévation',
     batchSize: 100,
     minInterval: 500,
     buildUrl(batch) {
       const locs = batch.map((p) => `${p.lat.toFixed(6)},${p.lon.toFixed(6)}`).join('|');
-      return `https://api.open-elevation.com/api/v1/lookup?locations=${encodeURIComponent(locs)}`;
+      return `https://api.open-élévation.com/api/v1/lookup?locations=${encodeURIComponent(locs)}`;
     },
     parse(json) {
       const results = (json as { results?: Array<{ elevation: number | null }> }).results ?? [];
@@ -50,7 +50,7 @@ export const PROVIDERS: Record<string, ElevationProvider> = {
   },
 };
 
-/** Cle de cache : ~11 m de resolution, en phase avec celle du DEM. */
+/** Clé de cache : ~11 m de résolution, en phase avec celle du DEM. */
 function cacheKey(lat: number, lon: number): string {
   return `${lat.toFixed(4)},${lon.toFixed(4)}`;
 }
@@ -59,19 +59,19 @@ const memoryCache = new Map<string, number>();
 
 export interface LookupOptions {
   provider?: ElevationProvider;
-  /** Un point sur `sampleEvery` est interroge, les autres sont interpoles. */
+  /** Un point sur `sampleEvery` est interrogé, les autres sont interpolés. */
   sampleEvery?: number;
   signal?: AbortSignal;
-  /** Progression dans [0, 1], appelee apres chaque lot. */
+  /** Progression dans [0, 1], appelée après chaque lot. */
   onProgress?: (done: number, total: number) => void;
 }
 
 /**
- * Complete les altitudes manquantes d'une liste de points.
+ * Complète les altitudes manquantes d'une liste de points.
  *
- * Renvoie une nouvelle liste ; en cas d'echec reseau les points concernes
- * gardent `ele: null` plutot que de propager une valeur inventee — un
- * denivele faux est pire qu'un denivele absent.
+ * Renvoie une nouvelle liste ; en cas d'échec réseau les points concernés
+ * gardent `ele: null` plutôt que de propager une valeur inventée — un
+ * dénivelé faux est pire qu'un dénivelé absent.
  */
 export async function fillElevations(
   points: RoutePoint[],
@@ -109,8 +109,8 @@ export async function fillElevations(
     }
   }
 
-  // Les points echantillonnes prennent la valeur du DEM, les autres sont
-  // interpoles lineairement entre leurs deux voisins echantillonnes.
+  // Les points échantillonnés prennent la valeur du DEM, les autres sont
+  // interpolés linéairement entre leurs deux voisins échantillonnés.
   const out = points.map((p) => ({ ...p }));
   const known: Array<[number, number]> = [];
   for (const i of sampleIdx) {
@@ -130,7 +130,7 @@ export async function fillElevations(
   return out;
 }
 
-/** Vide le cache memoire des altitudes (tests, changement de fournisseur). */
+/** Vide le cache mémoire des altitudes (tests, changement de fournisseur). */
 export function clearElevationCache(): void {
   memoryCache.clear();
 }

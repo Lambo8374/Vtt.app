@@ -1,45 +1,45 @@
 /** Un point brut issu du GPS ou d'un fichier GPX. */
 export interface TrackPoint {
-  /** Latitude en degres decimaux (WGS84). */
+  /** Latitude en degrés décimaux (WGS84). */
   lat: number;
-  /** Longitude en degres decimaux (WGS84). */
+  /** Longitude en degrés décimaux (WGS84). */
   lon: number;
-  /** Altitude ellipsoidale ou barometrique en metres. `null` si inconnue. */
+  /** Altitude ellipsoïdale ou barométrique en mètres. `null` si inconnue. */
   ele: number | null;
   /** Horodatage epoch en millisecondes. */
   t: number;
-  /** Precision horizontale annoncee par le GPS, en metres. */
+  /** Précision horizontale annoncée par le GPS, en mètres. */
   acc?: number;
-  /** Vitesse instantanee en m/s fournie par le recepteur (effet Doppler). */
+  /** Vitesse instantanée en m/s fournie par le récepteur (effet Doppler). */
   speed?: number | null;
 }
 
-/** Point d'un circuit dessine a la main : pas d'horodatage, altitude optionnelle. */
+/** Point d'un circuit dessiné à la main : pas d'horodatage, altitude optionnelle. */
 export interface RoutePoint {
   lat: number;
   lon: number;
   ele: number | null;
 }
 
-/** Une sortie enregistree. */
+/** Une sortie enregistrée. */
 export interface Track {
   id: string;
   name: string;
-  /** Date de depart (epoch ms). */
+  /** Date de départ (epoch ms). */
   startedAt: number;
   points: TrackPoint[];
-  /** Metriques figees au moment de la sauvegarde, pour ne pas recalculer a chaque affichage. */
+  /** Métriques figées au moment de la sauvegarde, pour ne pas recalculer à chaque affichage. */
   metrics: TrackMetrics;
   source: 'recorded' | 'imported';
 }
 
-/** Un circuit cree ou importe, destine a etre suivi. */
+/** Un circuit créé ou importé, destiné à être suivi. */
 export interface Route {
   id: string;
   name: string;
   createdAt: number;
   points: RoutePoint[];
-  /** Distance cumulee a chaque point, en metres. Longueur identique a `points`. */
+  /** Distance cumulée à chaque point, en mètres. Longueur identique à `points`. */
   cumDist: number[];
   distance: number;
   ascent: number;
@@ -49,35 +49,35 @@ export interface Route {
 }
 
 export interface TrackMetrics {
-  /** Distance totale en metres. */
+  /** Distance totale en mètres. */
   distance: number;
-  /** Denivele positif filtre, en metres. */
+  /** Dénivelé positif filtré, en mètres. */
   ascent: number;
-  /** Denivele negatif filtre, en metres (valeur positive). */
+  /** Dénivelé négatif filtré, en mètres (valeur positive). */
   descent: number;
-  /** Duree totale entre le premier et le dernier point, en ms. */
+  /** Durée totale entre le premier et le dernier point, en ms. */
   duration: number;
-  /** Duree en mouvement (vitesse au-dessus du seuil d'arret), en ms. */
+  /** Durée en mouvement (vitesse au-dessus du seuil d'arrêt), en ms. */
   movingTime: number;
-  /** Vitesse moyenne sur la duree totale, en m/s. */
+  /** Vitesse moyenne sur la durée totale, en m/s. */
   avgSpeed: number;
   /** Vitesse moyenne sur le temps en mouvement, en m/s. */
   avgMovingSpeed: number;
-  /** Vitesse maximale retenue apres filtrage des aberrations, en m/s. */
+  /** Vitesse maximale retenue après filtrage des aberrations, en m/s. */
   maxSpeed: number;
-  /** Altitude minimale et maximale apres lissage, en metres. */
+  /** Altitude minimale et maximale après lissage, en mètres. */
   minEle: number | null;
   maxEle: number | null;
-  /** Pente moyenne des sections en montee, en pourcentage. */
+  /** Pente moyenne des sections en montée, en pourcentage. */
   avgClimbGrade: number;
 }
 
-/** Un kilometre (ou mile) decoupe, pour le tableau des temps intermediaires. */
+/** Un kilomètre (ou mile) découpé, pour le tableau des temps intermédiaires. */
 export interface Split {
   index: number;
-  /** Distance reelle du segment, en metres (le dernier peut etre partiel). */
+  /** Distance réelle du segment, en mètres (le dernier peut être partiel). */
   distance: number;
-  /** Duree du segment en ms. */
+  /** Durée du segment en ms. */
   duration: number;
   /** Vitesse moyenne du segment en m/s. */
   speed: number;

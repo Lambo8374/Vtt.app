@@ -1,10 +1,10 @@
 /**
- * Identifiant unique, avec repli hors contexte securise.
+ * Identifiant unique, avec repli hors contexte sécurisé.
  *
- * `crypto.randomUUID` n'existe pas sur une origine non securisee : tester la
- * PWA depuis un telephone sur `http://192.168.x.x` ferait echouer toute
- * creation de circuit. Le repli n'a pas les garanties d'un vrai UUID v4, ce qui
- * est sans consequence pour des cles locales a un appareil.
+ * `crypto.randomUUID` n'existe pas sur une origine non sécurisée : tester la
+ * PWA depuis un téléphone sur `http://192.168.x.x` ferait échouer toute
+ * création de circuit. Le repli n'a pas les garanties d’un vrai UUID v4, ce qui
+ * est sans conséquence pour des clés locales à un appareil.
  */
 export function newId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

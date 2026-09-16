@@ -2,11 +2,11 @@ import type { LatLon } from './geo';
 import { localProjector } from './geo';
 
 /**
- * Simplification Douglas-Peucker, tolerance en metres.
+ * Simplification Douglas-Peucker, tolerance en mètres.
  *
  * Utile a deux endroits : alleger un GPX importe de 20 000 points avant de le
  * dessiner (Leaflet s'effondre bien avant), et nettoyer un circuit trace a la
- * main. On projette en metres au prealable, sinon la tolerance varierait avec
+ * main. On projette en mètres au préalable, sinon la tolerance varierait avec
  * la latitude.
  */
 export function simplify<T extends LatLon>(points: T[], tolerance = 5): T[] {
@@ -17,7 +17,7 @@ export function simplify<T extends LatLon>(points: T[], tolerance = 5): T[] {
   keep[0] = 1;
   keep[points.length - 1] = 1;
 
-  // Pile explicite : une recursion depasse la limite sur les longues traces.
+  // Pile explicite : une récursion dépasse la limite sur les longues traces.
   const stack: Array<[number, number]> = [[0, points.length - 1]];
   while (stack.length) {
     const [first, last] = stack.pop()!;

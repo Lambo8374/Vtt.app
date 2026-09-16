@@ -6,7 +6,7 @@ import { simplify } from '../src/core/simplify';
 import type { RoutePoint } from '../src/core/types';
 import { M_PER_DEG_LAT } from './helpers';
 
-/** Ligne droite plein nord de `n` points espaces de `step` metres. */
+/** Ligne droite plein nord de `n` points espacés de `step` mètres. */
 function straight(n: number, step: number, gain = 0): RoutePoint[] {
   return Array.from({ length: n }, (_, i) => ({
     lat: 45 + (i * step) / M_PER_DEG_LAT,
@@ -16,7 +16,7 @@ function straight(n: number, step: number, gain = 0): RoutePoint[] {
 }
 
 describe('simplify', () => {
-  it('reduit une ligne droite a ses deux extremites', () => {
+  it('réduit une ligne droite a ses deux extrémités', () => {
     expect(simplify(straight(100, 10), 5)).toHaveLength(2);
   });
 
@@ -34,7 +34,7 @@ describe('simplify', () => {
     expect(simplify(pts)).toEqual(pts);
   });
 
-  it('allege fortement une trace bruitee en preservant sa longueur', () => {
+  it('allege fortement une trace bruitée en preservant sa longueur', () => {
     const pts = straight(2000, 5).map((p, i) => ({ ...p, lon: 3 + Math.sin(i / 7) * 0.00002 }));
     const out = simplify(pts, 10);
     expect(out.length).toBeLessThan(pts.length / 10);
@@ -43,7 +43,7 @@ describe('simplify', () => {
 });
 
 describe('densify', () => {
-  it('insere des points intermediaires sous le pas demande', () => {
+  it('insère des points intermédiaires sous le pas demande', () => {
     const out = densify([{ lat: 45, lon: 3, ele: 100 }, { lat: 45.009, lon: 3, ele: 200 }], 25);
     expect(out.length).toBeGreaterThan(38);
     for (let i = 1; i < out.length; i++) {
@@ -51,29 +51,29 @@ describe('densify', () => {
     }
   });
 
-  it('interpole l altitude lineairement', () => {
+  it('interpolé l altitude linéairement', () => {
     const out = densify([{ lat: 45, lon: 3, ele: 100 }, { lat: 45.0018, lon: 3, ele: 300 }], 25);
     const mid = out[Math.floor(out.length / 2)];
     expect(mid.ele).toBeGreaterThan(150);
     expect(mid.ele).toBeLessThan(250);
   });
 
-  it('laisse l altitude nulle si une extremite est inconnue', () => {
+  it('laisse l altitude nulle si une extrémité est inconnue', () => {
     const out = densify([{ lat: 45, lon: 3, ele: null }, { lat: 45.002, lon: 3, ele: 300 }], 25);
     expect(out[1].ele).toBeNull();
   });
 });
 
 describe('buildRoute', () => {
-  it('calcule distance et denivele', () => {
-    const r = buildRoute('Montee test', straight(100, 20, 200), 'r1');
+  it('calcule distance et dénivelé', () => {
+    const r = buildRoute('Montée test', straight(100, 20, 200), 'r1');
     expect(r.distance).toBeCloseTo(1980, 0);
     expect(r.ascent).toBeGreaterThan(190);
     expect(r.descent).toBeLessThan(5);
     expect(r.cumDist).toHaveLength(100);
   });
 
-  it('detecte une boucle', () => {
+  it('détecte une boucle', () => {
     const half = straight(50, 20);
     const loop = [...half, ...[...half].reverse().slice(1)];
     expect(buildRoute('Boucle', loop, 'r2').loop).toBe(true);
@@ -96,7 +96,7 @@ describe('RouteFollower', () => {
     expect(s.onRoute).toBe(true);
   });
 
-  it('decompte le denivele restant', () => {
+  it('decompte le dénivelé restant', () => {
     const f = new RouteFollower(route);
     expect(f.update({ lat: route.points[0].lat, lon: 3 }).ascentRemaining).toBeCloseTo(400, 0);
     expect(f.update({ lat: route.points[199].lat, lon: 3 }).ascentRemaining).toBeCloseTo(0, 0);
@@ -111,8 +111,8 @@ describe('RouteFollower', () => {
 
   it('ne saute pas au retour sur un aller-retour', () => {
     // Piege classique : a mi-parcours du retour, le point le plus proche dans
-    // l'absolu appartient a l'aller. Sans fenetre de recherche, la progression
-    // reculerait brutalement et l'arrivee ne serait jamais atteinte.
+    // l'absolu appartient à l'aller. Sans fenêtre de recherche, la progression
+    // reculerait brutalement et l'arrivée ne serait jamais atteinte.
     const out = straight(100, 10);
     const back = [...out].reverse().slice(1);
     const ar = buildRoute('Aller-retour', [...out, ...back], 'r5');
@@ -127,19 +127,19 @@ describe('RouteFollower', () => {
     expect(last).toBeCloseTo(ar.distance, 0);
   });
 
-  it('detecte un demi-tour', () => {
+  it('détecte un demi-tour', () => {
     const f = new RouteFollower(route);
     f.update({ lat: route.points[100].lat, lon: 3 });
     expect(f.update({ lat: route.points[90].lat, lon: 3 }).wrongWay).toBe(true);
   });
 
-  it('ne signale pas un demi-tour sur une oscillation a l arret', () => {
+  it('ne signale pas un demi-tour sur une oscillation a l arrêt', () => {
     const f = new RouteFollower(route);
     f.update({ lat: route.points[100].lat, lon: 3 });
     expect(f.update({ lat: route.points[100].lat - 0.00005, lon: 3 }).wrongWay).toBe(false);
   });
 
-  it('se recale apres une sortie de trace prolongee', () => {
+  it('se recale après une sortie de trace prolongee', () => {
     const f = new RouteFollower(route);
     f.update({ lat: route.points[10].lat, lon: 3 });
     f.update({ lat: route.points[10].lat, lon: 3.02 });
@@ -148,7 +148,7 @@ describe('RouteFollower', () => {
     expect(back.distanceAlong).toBeCloseTo(1800, 0);
   });
 
-  it('tolere un circuit reduit a un point', () => {
+  it('tolère un circuit réduit à un point', () => {
     const s = new RouteFollower(buildRoute('Point', [{ lat: 45, lon: 3, ele: null }], 'r6')).update({ lat: 45, lon: 3 });
     expect(s.distanceRemaining).toBe(0);
   });

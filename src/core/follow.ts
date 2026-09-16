@@ -3,63 +3,63 @@ import { bearing, haversine, projectOnSegment } from './geo';
 import type { Route } from './types';
 
 export interface FollowState {
-  /** Index du segment du circuit sur lequel le cycliste est projete. */
+  /** Index du segment du circuit sur lequel le cycliste est projeté. */
   segment: number;
-  /** Position projetee sur le circuit. */
+  /** Position projetée sur le circuit. */
   snapped: LatLon;
-  /** Ecart perpendiculaire au circuit, en metres. */
+  /** Écart perpendiculaire au circuit, en mètres. */
   deviation: number;
-  /** false quand l'ecart depasse le seuil de tolerance. */
+  /** false quand l'écart dépasse le seuil de tolerance. */
   onRoute: boolean;
-  /** Distance parcourue le long du circuit, en metres. */
+  /** Distance parcourue le long du circuit, en mètres. */
   distanceAlong: number;
-  /** Distance restante jusqu'a l'arrivee, en metres. */
+  /** Distance restante jusqu'à l'arrivée, en mètres. */
   distanceRemaining: number;
-  /** Denivele positif restant, en metres. */
+  /** Dénivelé positif restant, en mètres. */
   ascentRemaining: number;
   /** Avancement dans [0, 1]. */
   progress: number;
-  /** Cap a suivre pour rejoindre le circuit, en degres. */
+  /** Cap à suivre pour rejoindre le circuit, en degrés. */
   bearingToRoute: number;
   /** true si la progression recule : le cycliste revient sur ses pas. */
   wrongWay: boolean;
 }
 
 export interface FollowOptions {
-  /** Ecart au-dela duquel on signale une sortie de trace, en metres. */
+  /** Écart au-delà duquel on signale une sortie de trace, en mètres. */
   offRouteThreshold?: number;
-  /** Portee de recherche en avant de la position precedente, en metres. */
+  /** Portée de recherche en avant de la position précédente, en mètres. */
   lookAhead?: number;
-  /** Portee de recherche en arriere, en metres. */
+  /** Portée de recherche en arrière, en mètres. */
   lookBehind?: number;
   /**
-   * Penalite appliquee a un segment oriente a contresens du deplacement, en
-   * metres equivalents. Mettre 0 desactive la desambiguisation par le cap.
+   * Pénalité appliquée à un segment orienté a contresens du déplacement, en
+   * mètres equivalents. Mettre 0 désactive la desambiguisation par le cap.
    */
   headingWeight?: number;
-  /** Deplacement minimal pour que le cap soit juge fiable, en metres. */
+  /** Déplacement minimal pour que le cap soit jugé fiable, en mètres. */
   headingMinMove?: number;
 }
 
 /**
  * Suivi d'une trace existante.
  *
- * Le point delicat est le recalage : chercher betement le point du circuit le
+ * Le point delicat est le recalage : chercher bêtement le point du circuit le
  * plus proche fait sauter la progression sur une boucle ou un aller-retour, ou
- * deux portions distantes de quelques metres se croisent. On limite donc la
- * recherche a une fenetre autour de la position precedente, et on ne rebascule
- * sur une recherche globale que lorsque la fenetre ne trouve plus rien de
+ * deux portions distantes de quelques mètres se croisent. On limite donc la
+ * recherche à une fenêtre autour de la position précédente, et on ne rebascule
+ * sur une recherche globale que lorsque la fenêtre ne trouvé plus rien de
  * valable — c'est-a-dire en cas de vraie sortie de trace.
  */
 export class RouteFollower {
   private readonly route: Route;
   private readonly opts: Required<FollowOptions>;
-  /** Denivele positif restant a partir de chaque point. */
+  /** Dénivelé positif restant à partir de chaque point. */
   private readonly ascentSuffix: number[];
   private lastSegment = 0;
   private lastAlong = 0;
   private lastPosition: LatLon | null = null;
-  /** Dernier cap de deplacement juge fiable, conserve pendant les arrets. */
+  /** Dernier cap de déplacement jugé fiable, conservé pendant les arrêts. */
   private travelBearing: number | null = null;
 
   constructor(route: Route, opts: FollowOptions = {}) {
@@ -74,7 +74,7 @@ export class RouteFollower {
     this.ascentSuffix = buildAscentSuffix(route);
   }
 
-  /** Reinitialise le recalage, par exemple apres une mise en pause longue. */
+  /** Réinitialise le recalage, par exemple après une mise en pause longue. */
   reset(): void {
     this.lastSegment = 0;
     this.lastAlong = 0;
@@ -99,9 +99,9 @@ export class RouteFollower {
       };
     }
 
-    // Le cap de deplacement n'est mis a jour qu'au-dela d'un seuil : sous ce
-    // seuil il ne refleterait que le bruit. On garde le dernier cap connu
-    // pendant les arrets plutot que de le perdre.
+    // Le cap de déplacement n'est mis a jour qu'au-delà d'un seuil : sous ce
+    // seuil il ne refléterait que le bruit. On garde le dernier cap connu
+    // pendant les arrêts plutôt que de le perdre.
     if (this.lastPosition) {
       const moved = haversine(this.lastPosition, position);
       if (moved >= this.opts.headingMinMove) {
@@ -117,8 +117,8 @@ export class RouteFollower {
     }
 
     const along = cumDist[best.segment] + best.t * (cumDist[best.segment + 1] - cumDist[best.segment]);
-    // Un recul de quelques metres n'est que du bruit GPS ; on ne le signale
-    // qu'au-dela de 15 m pour ne pas alerter a chaque arret.
+    // Un recul de quelques mètres n'est que du bruit GPS ; on ne le signale
+    // qu'au-delà de 15 m pour ne pas alerter à chaque arrêt.
     const wrongWay = along < this.lastAlong - 15;
     this.lastSegment = best.segment;
     this.lastAlong = along;
@@ -153,10 +153,10 @@ export class RouteFollower {
     for (let i = lo; i < hi; i++) {
       const r = projectOnSegment(position, points[i], points[i + 1]);
       // Sur un aller-retour emprunte dans les deux sens, les deux branches se
-      // superposent : l'ecart lateral ne les distingue pas et le recalage
-      // resterait bloque sur l'aller. Le cap de deplacement, lui, les separe.
-      // La penalite n'agit que sur le choix du segment, jamais sur l'ecart
-      // renvoye, pour ne pas declencher de fausse sortie de trace.
+      // superposent : l'écart latéral ne les distingue pas et le recalage
+      // resterait bloque sur l'aller. Le cap de déplacement, lui, les séparé.
+      // La pénalité n'agit que sur le choix du segment, jamais sur l'écart
+      // renvoyé, pour ne pas declencher de fausse sortie de trace.
       const score = r.distance + this.headingPenalty(i);
       if (score < bestScore) {
         bestScore = score;
@@ -180,10 +180,10 @@ export class RouteFollower {
   }
 
   /**
-   * Denivele restant, interpole a l'interieur du segment courant.
+   * Dénivelé restant, interpolé à l'intérieur du segment courant.
    *
    * Sans interpolation, arrive au dernier point on annoncerait encore le
-   * denivele complet du dernier segment au lieu de zero.
+   * dénivelé complet du dernier segment au lieu de zéro.
    */
   private ascentRemainingAt(segment: number, t: number): number {
     const { points } = this.route;
@@ -194,7 +194,7 @@ export class RouteFollower {
   }
 }
 
-/** Denivele positif restant a partir de chaque point du circuit. */
+/** Dénivelé positif restant à partir de chaque point du circuit. */
 function buildAscentSuffix(route: Route): number[] {
   const { points } = route;
   const out = new Array<number>(points.length).fill(0);
@@ -207,7 +207,7 @@ function buildAscentSuffix(route: Route): number[] {
   return out;
 }
 
-/** Index du premier element de `arr` (trie) superieur ou egal a `value`. */
+/** Index du premier élément de `arr` (trié) supérieur ou égal a `value`. */
 function lowerBound(arr: number[], value: number): number {
   let lo = 0;
   let hi = arr.length - 1;
@@ -219,13 +219,13 @@ function lowerBound(arr: number[], value: number): number {
   return lo;
 }
 
-/** Distance restante jusqu'au prochain changement de direction marque, en metres. */
+/** Distance restante jusqu'au prochain changement de direction marqué, en mètres. */
 export function distanceToNextTurn(route: Route, segment: number, minAngle = 45): number | null {
   const { points, cumDist } = route;
   for (let i = segment + 1; i < points.length - 1; i++) {
     const a = bearing(points[i - 1], points[i]);
     const b = bearing(points[i], points[i + 1]);
-    // Ecart de cap ramene dans [0, 180] : 0 = tout droit, 90 = angle droit.
+    // Écart de cap ramène dans [0, 180] : 0 = tout droit, 90 = angle droit.
     const diff = Math.abs(((b - a + 540) % 360) - 180);
     if (diff > minAngle) return cumDist[i] - cumDist[segment];
   }

@@ -2,7 +2,7 @@ import type { RoutePoint, TrackPoint } from './types';
 
 export interface ParsedGpx {
   name: string | null;
-  /** Points de `<trkpt>`, avec horodatage quand il est present. */
+  /** Points de `<trkpt>`, avec horodatage quand il est présent. */
   trackPoints: TrackPoint[];
   /** Points de `<rtept>`, sans horodatage. */
   routePoints: RoutePoint[];
@@ -11,9 +11,9 @@ export interface ParsedGpx {
 /**
  * Analyse un fichier GPX.
  *
- * On n'utilise pas `DOMParser` : le meme code doit tourner cote navigateur, en
- * test sous Node et, a terme, dans un worker. Le GPX est assez regulier pour
- * qu'un balayage suffise, a condition de tolerer les prefixes de namespace
+ * On n'utilise pas `DOMParser` : le même code doit tourner cote navigateur, en
+ * test sous Node et, a terme, dans un worker. Le GPX est assez régulier pour
+ * qu'un balayage suffise, a condition de tolérer les prefixes de namespace
  * (`<gpx:trkpt>`) que produisent certains exportateurs.
  */
 export function parseGpx(xml: string): ParsedGpx {
@@ -25,7 +25,7 @@ export function parseGpx(xml: string): ParsedGpx {
 
   const ptRe = /<(?:\w+:)?(trkpt|rtept|wpt)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:\w+:)?\1>)/g;
   let m: RegExpExecArray | null;
-  // Les traces exportees sans horodatage restent exploitables pour le trace ;
+  // Les traces exportées sans horodatage restent exploitables pour le trace ;
   // on ne leur invente pas de date, on les range en points de circuit.
   while ((m = ptRe.exec(xml)) !== null) {
     const [, tag, attrs, body = ''] = m;
@@ -48,7 +48,7 @@ export function parseGpx(xml: string): ParsedGpx {
   return { name, trackPoints, routePoints };
 }
 
-/** Serialise une sortie enregistree en GPX 1.1 (`<trk>`). */
+/** Sérialise une sortie enregistrée en GPX 1.1 (`<trk>`). */
 export function buildTrackGpx(name: string, points: TrackPoint[]): string {
   const body = points
     .map((p) => {
@@ -61,7 +61,7 @@ export function buildTrackGpx(name: string, points: TrackPoint[]): string {
   return header(name) + `  <trk>\n    <name>${escapeXml(name)}</name>\n    <trkseg>\n${body}\n    </trkseg>\n  </trk>\n</gpx>\n`;
 }
 
-/** Serialise un circuit en GPX 1.1 (`<rte>`). */
+/** Sérialise un circuit en GPX 1.1 (`<rte>`). */
 export function buildRouteGpx(name: string, points: RoutePoint[]): string {
   const body = points
     .map((p) => {

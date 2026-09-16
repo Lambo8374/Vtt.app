@@ -4,14 +4,14 @@ import { newId } from './id';
 import type { Route, RoutePoint } from './types';
 
 /**
- * Densifie une polyligne en inserant des points intermediaires.
+ * Densifie une polyligne en insérant des points intermédiaires.
  *
- * Un circuit trace a la main peut n'avoir que quelques sommets : sans
- * densification, le profil altimetrique n'aurait aucun point entre deux clics
+ * Un circuit trace à la main peut n'avoir que quelques sommets : sans
+ * densification, le profil altimétrique n'aurait aucun point entre deux clics
  * et le suivi de trace considererait le cycliste hors trace sur les longs
  * segments.
  *
- * @param step Espacement cible entre deux points, en metres.
+ * @param step Espacement cible entre deux points, en mètres.
  */
 export function densify(points: RoutePoint[], step = 25): RoutePoint[] {
   if (points.length < 2) return points.slice();
@@ -35,7 +35,7 @@ export function densify(points: RoutePoint[], step = 25): RoutePoint[] {
   return out;
 }
 
-/** Construit un circuit complet (distances cumulees, denivele, detection de boucle). */
+/** Construit un circuit complet (distances cumulées, dénivelé, détection de boucle). */
 export function buildRoute(name: string, points: RoutePoint[], id: string = newId()): Route {
   const cumDist = cumulativeDistances(points);
   const distance = cumDist[cumDist.length - 1] ?? 0;
@@ -48,8 +48,8 @@ export function buildRoute(name: string, points: RoutePoint[], id: string = newI
       if (p.ele != null) last = p.ele;
       return last;
     });
-    // Seuil bas : les altitudes viennent d'un modele de terrain, pas du GPS,
-    // donc elles ne portent pas le bruit qui impose un seuil eleve a
+    // Seuil bas : les altitudes viennent d'un modèle de terrain, pas du GPS,
+    // donc elles ne portent pas le bruit qui impose un seuil élevé a
     // l'enregistrement.
     const prof = elevationProfile(eles, { medianWindow: 3, smoothWindow: 3, threshold: 1 });
     ascent = prof.ascent;

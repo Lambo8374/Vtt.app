@@ -13,7 +13,7 @@ const SAMPLE = `<?xml version="1.0"?>
 </gpx>`;
 
 describe('parseGpx', () => {
-  it('lit le nom, les coordonnees, l altitude et l heure', () => {
+  it('lit le nom, les coordonnées, l altitude et l heure', () => {
     const g = parseGpx(SAMPLE);
     expect(g.name).toBe('Col de la Madone');
     expect(g.trackPoints).toHaveLength(3);
@@ -30,7 +30,7 @@ describe('parseGpx', () => {
     expect(g.trackPoints[0].ele).toBe(200);
   });
 
-  it('range les points sans horodatage en circuit plutot qu en trace', () => {
+  it('range les points sans horodatage en circuit plutôt qu en trace', () => {
     const g = parseGpx(`<gpx><trk><trkseg>
       <trkpt lat="45" lon="3"><ele>200</ele></trkpt>
       <trkpt lat="45.001" lon="3.001"><ele>210</ele></trkpt>
@@ -39,7 +39,7 @@ describe('parseGpx', () => {
     expect(g.routePoints).toHaveLength(2);
   });
 
-  it('lit les rtept et ignore les waypoints isoles', () => {
+  it('lit les rtept et ignore les waypoints isolés', () => {
     const g = parseGpx(`<gpx>
       <wpt lat="44" lon="5"><name>Parking</name></wpt>
       <rte><rtept lat="45" lon="3"/><rtept lat="45.01" lon="3.01"/></rte>
@@ -57,18 +57,18 @@ describe('parseGpx', () => {
     expect(parseGpx(`<gpx><metadata><name>Bois &amp; Combes</name></metadata></gpx>`).name).toBe('Bois & Combes');
   });
 
-  it('ignore les coordonnees invalides', () => {
+  it('ignore les coordonnées invalides', () => {
     const g = parseGpx(`<gpx><rte><rtept lat="abc" lon="3"/><rtept lat="45" lon="3"/></rte></gpx>`);
     expect(g.routePoints).toHaveLength(1);
   });
 
-  it('ne plante pas sur une entree vide', () => {
+  it('ne plante pas sur une entrée vide', () => {
     expect(parseGpx('').trackPoints).toEqual([]);
   });
 });
 
 describe('aller-retour GPX', () => {
-  it('conserve les points d une trace a l ecriture puis a la relecture', () => {
+  it('conserve les points d une trace a l ecriture puis à la relecture', () => {
     const pts = syntheticTrack({ count: 50, speed: 5, elevationGain: 80 });
     const reparsed = parseGpx(buildTrackGpx('Sortie test', pts));
 

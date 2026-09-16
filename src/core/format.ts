@@ -9,6 +9,23 @@ export function formatSpeed(mps: number): string {
   return `${(mps * 3.6).toFixed(1)} km/h`;
 }
 
+/**
+ * Vitesse sans unité, en km/h.
+ *
+ * Dans une tuile étroite, « 16.2 km/h » passe à la ligne et casse l'alignement
+ * de la grille. L'unité est alors portée par le libellé, qui ne change jamais.
+ */
+export function formatSpeedValue(mps: number): string {
+  return (mps * 3.6).toFixed(1);
+}
+
+/** Allure sans unité, en minutes par kilomètre. */
+export function formatPaceValue(mps: number): string {
+  if (mps <= 0.1) return '--';
+  const secPerKm = 1000 / mps;
+  return `${Math.floor(secPerKm / 60)}:${String(Math.round(secPerKm % 60)).padStart(2, '0')}`;
+}
+
 export function formatElevation(meters: number | null): string {
   return meters == null ? '--' : `${Math.round(meters)} m`;
 }
@@ -22,7 +39,7 @@ export function formatDuration(ms: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
 
-/** Allure en minutes par kilometre, plus parlante que la vitesse en montee. */
+/** Allure en minutes par kilomètre, plus parlante que la vitesse en montée. */
 export function formatPace(mps: number): string {
   if (mps <= 0.1) return '--';
   const secPerKm = 1000 / mps;

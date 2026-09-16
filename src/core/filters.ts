@@ -3,10 +3,10 @@ import { haversine } from './geo';
 import type { TrackPoint } from './types';
 
 /**
- * Filtre median glissant.
+ * Filtre médian glissant.
  *
- * C'est le seul filtre qui supprime vraiment les pics isoles d'altitude GPS
- * sans les etaler sur les echantillons voisins, contrairement a une moyenne.
+ * C'est le seul filtre qui supprime vraiment les pics isolés d'altitude GPS
+ * sans les étaler sur les échantillons voisins, contrairement à une moyenne.
  */
 export function medianFilter(values: number[], window = 5): number[] {
   if (window < 2 || values.length === 0) return values.slice();
@@ -22,7 +22,7 @@ export function medianFilter(values: number[], window = 5): number[] {
   return out;
 }
 
-/** Moyenne glissante centree, appliquee apres le median pour adoucir les paliers. */
+/** Moyenne glissante centrée, appliquée après le médian pour adoucir les paliers. */
 export function movingAverage(values: number[], window = 5): number[] {
   if (window < 2 || values.length === 0) return values.slice();
   const half = Math.floor(window / 2);
@@ -38,28 +38,28 @@ export function movingAverage(values: number[], window = 5): number[] {
 }
 
 export interface ElevationOptions {
-  /** Taille de la fenetre du filtre median, en nombre d'echantillons. */
+  /** Taille de la fenêtre du filtre médian, en nombre d'échantillons. */
   medianWindow?: number;
-  /** Taille de la fenetre de la moyenne glissante, en nombre d'echantillons. */
+  /** Taille de la fenêtre de la moyenne glissante, en nombre d'échantillons. */
   smoothWindow?: number;
   /**
-   * Seuil d'hysteresis en metres : une variation doit depasser cette valeur
-   * pour etre comptee comme un vrai changement d'altitude.
+   * Seuil d'hystérésis en mètres : une variation doit dépasser cette valeur
+   * pour être comptée comme un vrai changement d'altitude.
    */
   threshold?: number;
 }
 
 /**
- * Reglages par defaut, calibres sur des traces synthetiques bruitees a +/- 8 m
- * (l'ordre de grandeur de l'altimetrie GPS d'un telephone).
+ * Réglages par défaut, calibrés sur des traces synthétiques bruitées a +/- 8 m
+ * (l'ordre de grandeur de l'altimétrie GPS d'un téléphone).
  *
- * Trois scenarios ont servi d'arbitrage : un parcours plat, une montee reguliere
- * de 400 m et une succession de bosses de 30 m. Ces valeurs ramenent le D+
- * fantome du plat sous 25 m par heure (contre pres de 9 400 m en sommant
- * naivement les deltas), au prix d'une sous-estimation des bosses courtes,
- * attenuees par le lissage. Ce compromis est structurel : a +/- 8 m de bruit,
- * une bosse de 15 m d'amplitude n'est pas separable du bruit sans perdre de
- * l'amplitude. Seul un barometre le leve vraiment.
+ * Trois scénarios ont servi d'arbitrage : un parcours plat, une montée régulière
+ * de 400 m et une succession de bosses de 30 m. Ces valeurs ramènent le D+
+ * fantôme du plat sous 25 m par heure (contre près de 9 400 m en sommant
+ * naïvement les deltas), au prix d'une sous-estimation des bosses courtes,
+ * atténuées par le lissage. Ce compromis est structurel : a +/- 8 m de bruit,
+ * une bosse de 15 m d'amplitude n'est pas séparable du bruit sans perdre de
+ * l'amplitude. Seul un baromètre le leve vraiment.
  */
 export const DEFAULT_ELEVATION_OPTIONS: Required<ElevationOptions> = {
   medianWindow: 5,
@@ -68,29 +68,40 @@ export const DEFAULT_ELEVATION_OPTIONS: Required<ElevationOptions> = {
 };
 
 export interface ElevationProfile {
-  /** Serie d'altitudes lissee, de meme longueur que l'entree. */
+  /** Série d'altitudes lissée, de même longueur que l'entrée. */
   smoothed: number[];
   ascent: number;
   descent: number;
-  /** Distance horizontale parcourue en montee, en metres (0 sans `cumDist`). */
+  /** Distance horizontale parcourue en montée, en mètres (0 sans `cumDist`). */
   ascentDistance: number;
-  /** Distance horizontale parcourue en descente, en metres (0 sans `cumDist`). */
+  /** Distance horizontale parcourue en descente, en mètres (0 sans `cumDist`). */
   descentDistance: number;
+  /**
+   * Gain d'altitude attribué à chaque index, en mètres.
+   *
+   * Sert à ventiler le dénivelé par tranche sans relancer l'hystérésis : une
+   * hystérésis relancée sur chaque kilomètre repart d'une altitude de référence
+   * neuve, si bien que la somme des tranches ne retombe pas sur le total. En
+   * partageant ces incréments, les deux chiffres coïncident par construction.
+   */
+  ascentSteps: number[];
+  /** Perte d'altitude attribuée à chaque index, en mètres. */
+  descentSteps: number[];
 }
 
 /**
- * Calcule le denivele a partir d'une serie d'altitudes bruitees.
+ * Calculé le dénivelé à partir d'une série d'altitudes bruitées.
  *
  * Sommer les deltas positifs bruts est faux : avec un bruit GPS de +/- 10 m,
- * une sortie plate de deux heures produit plusieurs centaines de metres de D+
- * inexistant. On lisse d'abord (median puis moyenne), puis on n'accumule qu'au
- * franchissement d'un seuil d'hysteresis, ce qui rend le resultat stable meme
- * quand la serie oscille autour d'une valeur.
+ * une sortie plate de deux heures produit plusieurs centaines de mètres de D+
+ * inexistant. On lisse d'abord (médian puis moyenne), puis on n'accumule qu'au
+ * franchissement d'un seuil d'hystérésis, ce qui rend le résultat stable même
+ * quand la série oscille autour d'une valeur.
  */
 export function elevationProfile(
   eles: number[],
   opts: ElevationOptions = {},
-  /** Distances cumulees alignees sur `eles`, pour repartir la distance montee/descente. */
+  /** Distances cumulées alignées sur `eles`, pour répartir la distance montée/descente. */
   cumDist?: number[],
 ): ElevationProfile {
   const {
@@ -98,8 +109,17 @@ export function elevationProfile(
     smoothWindow = DEFAULT_ELEVATION_OPTIONS.smoothWindow,
     threshold = DEFAULT_ELEVATION_OPTIONS.threshold,
   } = opts;
-  const empty = { smoothed: [], ascent: 0, descent: 0, ascentDistance: 0, descentDistance: 0 };
-  if (eles.length === 0) return empty;
+  if (eles.length === 0) {
+    return {
+      smoothed: [],
+      ascent: 0,
+      descent: 0,
+      ascentDistance: 0,
+      descentDistance: 0,
+      ascentSteps: [],
+      descentSteps: [],
+    };
+  }
 
   const smoothed = movingAverage(medianFilter(eles, medianWindow), smoothWindow);
 
@@ -107,7 +127,9 @@ export function elevationProfile(
   let descent = 0;
   let ascentDistance = 0;
   let descentDistance = 0;
-  // Altitude de reference : elle ne bouge qu'une fois le seuil franchi.
+  const ascentSteps = new Array<number>(smoothed.length).fill(0);
+  const descentSteps = new Array<number>(smoothed.length).fill(0);
+  // Altitude de référence : elle ne bouge qu'une fois le seuil franchi.
   let ref = smoothed[0];
   // Index du dernier franchissement, pour attribuer la distance au bon sens.
   let refIndex = 0;
@@ -118,26 +140,28 @@ export function elevationProfile(
       if (delta > 0) {
         ascent += delta;
         ascentDistance += span;
+        ascentSteps[i] = delta;
       } else {
         descent += -delta;
         descentDistance += span;
+        descentSteps[i] = -delta;
       }
       ref = smoothed[i];
       refIndex = i;
     }
   }
-  return { smoothed, ascent, descent, ascentDistance, descentDistance };
+  return { smoothed, ascent, descent, ascentDistance, descentDistance, ascentSteps, descentSteps };
 }
 
 /**
- * Filtre de Kalman 1D applique independamment a la latitude et a la longitude.
+ * Filtre de Kalman 1D applique indépendamment à la latitude et à la longitude.
  *
- * L'interet par rapport a une moyenne glissante : la precision annoncee par le
- * recepteur (`acc`) sert de variance de mesure, donc un point sous couvert
- * forestier pese moins qu'un point acquis a ciel ouvert.
+ * L'intérêt par rapport à une moyenne glissante : la précision annoncée par le
+ * récepteur (`acc`) sert de variance de mesure, donc un point sous couvert
+ * forestier pèse moins qu'un point acquis a ciel ouvert.
  *
- * @param processNoise Bruit de process en m/s. Plus il est eleve, plus le
- *   filtre suit les manoeuvres rapides ; plus il est bas, plus la trace est
+ * @param processNoise Bruit de process en m/s. Plus il est élevé, plus le
+ *   filtre suit les manœuvres rapides ; plus il est bas, plus la trace est
  *   lisse mais en retard dans les virages. 3 m/s convient au VTT.
  */
 export function kalmanSmooth(points: TrackPoint[], processNoise = 3): TrackPoint[] {
@@ -163,21 +187,21 @@ export function kalmanSmooth(points: TrackPoint[], processNoise = 3): TrackPoint
 }
 
 export interface CleanOptions {
-  /** Precision maximale toleree, en metres. Au-dela le point est rejete. */
+  /** Précision maximale tolérée, en mètres. Au-delà le point est rejeté. */
   maxAccuracy?: number;
-  /** Vitesse maximale plausible, en m/s. Au-dela le point est considere aberrant. */
+  /** Vitesse maximale plausible, en m/s. Au-delà le point est considère aberrant. */
   maxSpeed?: number;
   /**
-   * Deplacement minimal entre deux points retenus, en metres. Sous ce seuil on
-   * considere que l'on est a l'arret et que le mouvement apparent est du bruit.
+   * Déplacement minimal entre deux points retenus, en mètres. Sous ce seuil on
+   * considère que l'on est à l'arrêt et que le mouvement apparent est du bruit.
    */
   minSegment?: number;
 }
 
 /**
- * Elimine les points inexploitables avant tout calcul de metrique.
+ * Élimine les points inexploitables avant tout calcul de métrique.
  *
- * Sans ce nettoyage, la distance derive : a l'arret, un recepteur qui oscille
+ * Sans ce nettoyage, la distance dérive : à l'arrêt, un récepteur qui oscille
  * de 5 m entre deux mesures ajoute environ 300 m par heure de pause.
  */
 export function cleanPoints(points: TrackPoint[], opts: CleanOptions = {}): TrackPoint[] {
@@ -194,10 +218,10 @@ export function cleanPoints(points: TrackPoint[], opts: CleanOptions = {}): Trac
     const dt = (p.t - last.t) / 1000;
     if (dt <= 0) continue;
     const d = haversine(last as LatLon, p as LatLon);
-    // Saut impossible : point aberrant, on le jette plutot que de le lisser.
+    // Saut impossible : point aberrant, on le jette plutôt que de le lisser.
     if (d / dt > maxSpeed) continue;
     // Immobile : on garde l'horodatage (pour le temps total) mais on fige la
-    // position sur le dernier point valide, ce qui annule la derive.
+    // position sur le dernier point valide, ce qui annule la dérive.
     if (d < minSegment) {
       out.push({ ...p, lat: last.lat, lon: last.lon });
       continue;
@@ -208,24 +232,24 @@ export function cleanPoints(points: TrackPoint[], opts: CleanOptions = {}): Trac
 }
 
 export interface StopOptions {
-  /** Duree de la fenetre d'analyse, en secondes. */
+  /** Durée de la fenêtre d'analyse, en secondes. */
   stopWindow?: number;
-  /** Rayon plancher en dessous duquel on considere qu'il n'y a pas de deplacement. */
+  /** Rayon plancher en dessous duquel on considère qu'il n'y a pas de déplacement. */
   stopRadius?: number;
-  /** Multiplicateur applique a la precision annoncee pour ajuster ce rayon. */
+  /** Multiplicateur applique à la précision annoncée pour ajuster ce rayon. */
   stopAccuracyFactor?: number;
 }
 
 /**
- * Detecte les arrets et fige la position pendant ceux-ci.
+ * Détecte les arrêts et fige la position pendant ceux-ci.
  *
- * Le rejet des micro-segments de `cleanPoints` ne suffit pas : a l'arret sous
- * couvert forestier, deux mesures successives peuvent etre distantes de 8 m,
+ * Le rejet des micro-segments de `cleanPoints` ne suffit pas : à l'arrêt sous
+ * couvert forestier, deux mesures successives peuvent être distantes de 8 m,
  * bien au-dessus de tout seuil raisonnable pour un seul segment. Le signal
  * fiable n'est pas la longueur d'un segment mais le rapport entre le
- * deplacement net sur une fenetre et le chemin parcouru dans cette fenetre :
- * a l'arret ce rapport s'effondre, en mouvement il reste proche de 1. C'est
- * insensible a l'amplitude du bruit, contrairement a un seuil absolu.
+ * déplacement net sur une fenêtre et le chemin parcouru dans cette fenêtre :
+ * à l'arrêt ce rapport s'effondre, en mouvement il reste proche de 1. C'est
+ * insensible à l'amplitude du bruit, contrairement à un seuil absolu.
  */
 export function freezeStops(points: TrackPoint[], opts: StopOptions = {}): TrackPoint[] {
   const { stopWindow = 10, stopRadius = 8, stopAccuracyFactor = 2.5 } = opts;
@@ -252,8 +276,8 @@ export function freezeStops(points: TrackPoint[], opts: StopOptions = {}): Track
     if (net < limit && (path === 0 || net / path < 0.5)) stationary[i] = 1;
   }
 
-  // Fermeture morphologique : un point isole declare en mouvement au milieu
-  // d'un arret n'est qu'un aleas de fenetre, pas un vrai redemarrage.
+  // Fermeture morphologique : un point isolé declare en mouvement au milieu
+  // d'un arrêt n'est qu'un aléas de fenêtre, pas un vrai redémarrage.
   for (let i = 1; i < n - 1; i++) {
     if (stationary[i]) continue;
     let j = i;
@@ -264,8 +288,8 @@ export function freezeStops(points: TrackPoint[], opts: StopOptions = {}): Track
     i = j;
   }
 
-  // Chaque plage immobile est ramenee a son barycentre : le deplacement
-  // apparent a l'interieur de la plage disparait entierement.
+  // Chaque plage immobile est ramenée a son barycentre : le déplacement
+  // apparent à l'intérieur de la plage disparaît entièrement.
   const out = points.map((p) => ({ ...p }));
   let i = 0;
   while (i < n) {

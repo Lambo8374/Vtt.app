@@ -1,4 +1,4 @@
-/** Rayon moyen de la Terre en metres (sphere WGS84 de meme volume). */
+/** Rayon moyen de la Terre en mètres (sphère WGS84 de même volume). */
 export const EARTH_RADIUS = 6371008.8;
 
 const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -10,11 +10,11 @@ export interface LatLon {
 }
 
 /**
- * Distance orthodromique entre deux points, en metres.
+ * Distance orthodromique entre deux points, en mètres.
  *
- * On utilise haversine plutot que Vincenty : l'erreur due a l'aplatissement
+ * On utilise haversine plutôt que Vincenty : l'erreur due à l'aplatissement
  * terrestre (~0,3 %) est un ordre de grandeur en dessous du bruit GPS sur les
- * segments de quelques metres qu'on manipule ici.
+ * segments de quelques mètres qu'on manipule ici.
  */
 export function haversine(a: LatLon, b: LatLon): number {
   const dLat = toRad(b.lat - a.lat);
@@ -27,7 +27,7 @@ export function haversine(a: LatLon, b: LatLon): number {
   return 2 * EARTH_RADIUS * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-/** Cap (azimut) de `a` vers `b`, en degres dans [0, 360). */
+/** Cap (azimut) de `a` vers `b`, en degrés dans [0, 360). */
 export function bearing(a: LatLon, b: LatLon): number {
   const lat1 = toRad(a.lat);
   const lat2 = toRad(b.lat);
@@ -40,12 +40,12 @@ export function bearing(a: LatLon, b: LatLon): number {
 }
 
 /**
- * Projection locale en metres autour d'une origine.
+ * Projection locale en mètres autour d'une origine.
  *
- * Suffisamment exacte sur l'etendue d'une sortie VTT (quelques dizaines de km)
+ * Suffisamment exacte sur l'étendue d'une sortie VTT (quelques dizaines de km)
  * et bien plus rapide qu'une vraie projection ; elle sert aux calculs
- * geometriques (projection sur segment, simplification) ou travailler en
- * degres fausserait les distances a cause du cos(latitude).
+ * géométriques (projection sur segment, simplification) ou travailler en
+ * degrés fausserait les distances a cause du cos(latitude).
  */
 export function localProjector(origin: LatLon) {
   const mPerDegLat = 111132.92 - 559.82 * Math.cos(2 * toRad(origin.lat));
@@ -61,9 +61,9 @@ export function localProjector(origin: LatLon) {
 }
 
 export interface ProjectionResult {
-  /** Point projete sur le segment. */
+  /** Point projeté sur le segment. */
   point: LatLon;
-  /** Distance perpendiculaire au segment, en metres. */
+  /** Distance perpendiculaire au segment, en mètres. */
   distance: number;
   /** Position relative sur le segment, dans [0, 1]. */
   t: number;
@@ -82,7 +82,7 @@ export function projectOnSegment(p: LatLon, a: LatLon, b: LatLon): ProjectionRes
   return { point, distance: haversine(p, point), t };
 }
 
-/** Distances cumulees le long d'une polyligne, en metres (premier element : 0). */
+/** Distances cumulées le long d'une polyligne, en mètres (premier élément : 0). */
 export function cumulativeDistances(points: LatLon[]): number[] {
   const out = new Array<number>(points.length);
   let total = 0;
@@ -93,7 +93,7 @@ export function cumulativeDistances(points: LatLon[]): number[] {
   return out;
 }
 
-/** Longueur totale d'une polyligne, en metres. */
+/** Longueur totale d'une polyligne, en mètres. */
 export function pathLength(points: LatLon[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) total += haversine(points[i - 1], points[i]);

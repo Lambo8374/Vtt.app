@@ -4,23 +4,23 @@ import type { CleanOptions, ElevationOptions, StopOptions } from './filters';
 import type { Split, TrackMetrics, TrackPoint } from './types';
 
 export interface MetricsOptions extends CleanOptions, ElevationOptions, StopOptions {
-  /** Seuil sous lequel on considere le velo a l'arret, en m/s (defaut 0,8 = 2,9 km/h). */
+  /** Seuil sous lequel on considère le vélo à l'arrêt, en m/s (défaut 0,8 = 2,9 km/h). */
   stoppedSpeed?: number;
-  /** Fenetre de lissage de la vitesse instantanee, en secondes. */
+  /** Fenêtre de lissage de la vitesse instantanée, en secondes. */
   speedWindow?: number;
-  /** Desactive le lissage de Kalman (utile pour une trace GPX deja propre). */
+  /** Désactive le lissage de Kalman (utile pour une trace GPX déjà propre). */
   skipSmoothing?: boolean;
-  /** Desactive la detection d'arret (utile pour inspecter une trace brute). */
+  /** Désactive la détection d'arrêt (utile pour inspecter une trace brute). */
   skipStopDetection?: boolean;
 }
 
 /**
- * Convertit les fenetres de lissage d'altitude, calibrees a 1 Hz, vers la
- * cadence reelle de la trace.
+ * Convertit les fenêtres de lissage d'altitude, calibrées à 1 Hz, vers la
+ * cadence réelle de la trace.
  *
  * Sans cette conversion, un GPX enregistre toutes les 5 secondes verrait sa
- * fenetre de 15 echantillons couvrir 75 secondes de trajet et perdrait tout le
- * relief ; a l'inverse, un enregistrement a 5 Hz ne serait pas assez lisse.
+ * fenêtre de 15 échantillons couvrir 75 secondes de trajet et perdrait tout le
+ * relief ; à l'inverse, un enregistrement a 5 Hz ne serait pas assez lisse.
  */
 export function scaleElevationWindows(
   points: TrackPoint[],
@@ -53,14 +53,25 @@ function stripUndefined<T extends object>(o: T): Partial<T> {
 }
 
 export interface ComputedTrack {
-  /** Points apres nettoyage et lissage : c'est cette serie qu'il faut afficher. */
+  /** Points après nettoyage et lissage : c'est cette série qu'il faut afficher. */
   points: TrackPoint[];
-  /** Distance cumulee a chaque point, en metres. */
+  /** Distance cumulée à chaque point, en mètres. */
   cumDist: number[];
-  /** Altitudes lissees, alignees sur `points`. */
+  /** Altitudes lissées, alignées sur `points`. */
   elevations: number[];
-  /** Vitesse lissee a chaque point, en m/s. */
+  /** Vitesse lissée à chaque point, en m/s. */
   speeds: number[];
+  /** Distance horizontale parcourue en montée, en mètres. */
+  ascentDistance: number;
+  /** Gain d'altitude attribué à chaque point, pour ventiler le D+ par tranche. */
+  ascentSteps: number[];
+  /** Perte d'altitude attribuée à chaque point. */
+  descentSteps: number[];
+  /**
+   * Index de debut de chaque tronçon. Un tronçon commence après une pause :
+   * la distance et la durée separant deux tronçons ne comptent pas.
+   */
+  segmentStarts: number[];
   metrics: TrackMetrics;
 }
 
@@ -79,12 +90,12 @@ const EMPTY_METRICS: TrackMetrics = {
 };
 
 /**
- * Vitesse lissee sur une fenetre temporelle.
+ * Vitesse lissée sur une fenêtre temporelle.
  *
- * On privilegie la vitesse fournie par le recepteur quand elle existe : elle
- * vient du decalage Doppler et reste bien plus juste qu'une derivee de
- * positions bruitees. La derivee ne sert que de repli, lissee sur `window`
- * secondes pour eviter les pics a chaque oscillation du signal.
+ * On privilégie la vitesse fournie par le récepteur quand elle existe : elle
+ * vient du décalage Doppler et reste bien plus juste qu'une dérivée de
+ * positions bruitées. La dérivée ne sert que de repli, lissée sur `window`
+ * secondes pour éviter les pics à chaque oscillation du signal.
  */
 export function speedSeries(points: TrackPoint[], window = 5): number[] {
   const n = points.length;
@@ -97,7 +108,7 @@ export function speedSeries(points: TrackPoint[], window = 5): number[] {
       out[i] = reported;
       continue;
     }
-    // Fenetre centree : on cherche les bornes couvrant +/- window/2 secondes.
+    // Fenêtre centrée : on cherche les bornes couvrant +/- window/2 secondes.
     const target = (window * 1000) / 2;
     let lo = i;
     let hi = i;
@@ -115,31 +126,41 @@ export function speedSeries(points: TrackPoint[], window = 5): number[] {
   return out;
 }
 
-/** Calcule toutes les metriques d'une serie de points GPS bruts. */
+/** Calcule toutes les métriques d'une série de points GPS bruts. */
 export function computeTrack(raw: TrackPoint[], opts: MetricsOptions = {}): ComputedTrack {
   const { stoppedSpeed = 0.8, speedWindow = 5, skipSmoothing = false, skipStopDetection = false } = opts;
 
   // Ordre impose : on rejette d'abord l'inexploitable, on lisse ensuite ce qui
-  // reste, puis on neutralise les arrets. Detecter les arrets avant le lissage
+  // reste, puis on neutralise les arrêts. Détecter les arrêts avant le lissage
   // reviendrait a chercher un signal faible dans le bruit maximal.
   const cleaned = cleanPoints(raw, opts);
   const smoothed = skipSmoothing ? cleaned : kalmanSmooth(cleaned);
   const points = skipStopDetection ? smoothed : freezeStops(smoothed, opts);
   if (points.length === 0) {
-    return { points: [], cumDist: [], elevations: [], speeds: [], metrics: { ...EMPTY_METRICS } };
+    return {
+      points: [],
+      cumDist: [],
+      elevations: [],
+      speeds: [],
+      ascentDistance: 0,
+      ascentSteps: [],
+      descentSteps: [],
+      segmentStarts: [],
+      metrics: { ...EMPTY_METRICS },
+    };
   }
 
   const cumDist = cumulativeDistances(points);
   // La distance est la somme de tous les segments, sans base minimale.
   // Accumuler sur une base de 10 a 30 m corrigerait bien le gonflement du
-  // rectiligne (+3,9 % ramene a +0,2 % en mesure) mais degraderait les lacets
-  // serres de -7 % a -16 %, le lissage rognant deja les virages : le pire cas
-  // empire. Le biais residuel mesure est de +2 a +4 % selon la qualite du
+  // rectiligne (+3,9 % ramène a +0,2 % en mesure) mais dégraderait les lacets
+  // serrés de -7 % a -16 %, le lissage rognant déjà les virages : le pire cas
+  // empire. Le biais résiduel mesure est de +2 a +4 % selon la qualité du
   // signal, ce qui reste le meilleur compromis disponible ici.
   const distance = cumDist[cumDist.length - 1];
 
-  // Les points sans altitude sont remplaces par la derniere connue : une serie
-  // trouee ferait sauter le filtre median.
+  // Les points sans altitude sont remplacés par la dernière connue : une série
+  // trouée ferait sauter le filtre médian.
   const hasEle = points.some((p) => p.ele != null);
   const rawEles: number[] = [];
   let lastEle = points.find((p) => p.ele != null)?.ele ?? 0;
@@ -151,7 +172,15 @@ export function computeTrack(raw: TrackPoint[], opts: MetricsOptions = {}): Comp
   const eleOpts = scaleElevationWindows(points, opts);
   const profile = hasEle
     ? elevationProfile(rawEles, eleOpts, cumDist)
-    : { smoothed: rawEles.map(() => 0), ascent: 0, descent: 0, ascentDistance: 0, descentDistance: 0 };
+    : {
+        smoothed: rawEles.map(() => 0),
+        ascent: 0,
+        descent: 0,
+        ascentDistance: 0,
+        descentDistance: 0,
+        ascentSteps: rawEles.map(() => 0),
+        descentSteps: rawEles.map(() => 0),
+      };
 
   const speeds = speedSeries(points, speedWindow);
 
@@ -159,8 +188,8 @@ export function computeTrack(raw: TrackPoint[], opts: MetricsOptions = {}): Comp
   for (let i = 1; i < points.length; i++) {
     const dt = points[i].t - points[i - 1].t;
     if (dt <= 0) continue;
-    // Un segment compte comme roule si la vitesse a l'une de ses bornes depasse
-    // le seuil : sinon les redemarrages seraient systematiquement tronques.
+    // Un segment compte comme roule si la vitesse à l'une de ses bornes dépasse
+    // le seuil : sinon les redémarrages seraient systématiquement tronqués.
     if (Math.max(speeds[i], speeds[i - 1]) > stoppedSpeed) movingTime += dt;
   }
 
@@ -172,6 +201,10 @@ export function computeTrack(raw: TrackPoint[], opts: MetricsOptions = {}): Comp
     cumDist,
     elevations: profile.smoothed,
     speeds,
+    ascentDistance: profile.ascentDistance,
+    ascentSteps: profile.ascentSteps,
+    descentSteps: profile.descentSteps,
+    segmentStarts: [0],
     metrics: {
       distance,
       ascent: profile.ascent,
@@ -190,22 +223,22 @@ export function computeTrack(raw: TrackPoint[], opts: MetricsOptions = {}): Comp
 }
 
 /**
- * Decoupe la sortie en tranches de `step` metres (1 km par defaut).
+ * Découpe la sortie en tranches de `step` mètres (1 km par défaut).
  *
- * Les bornes sont interpolees a la distance exacte, de sorte qu'un segment
+ * Les bornes sont interpolees à la distance exacte, de sorte qu'un segment
  * plein mesure exactement `step`. Le dernier est presque toujours partiel : on
- * le renvoie avec sa distance reelle pour que son allure reste juste.
+ * le renvoie avec sa distance réelle pour que son allure reste juste.
  */
 export function computeSplits(track: ComputedTrack, step = 1000): Split[] {
   const { points, cumDist, elevations } = track;
   if (points.length < 2 || step <= 0) return [];
 
   /**
-   * Etat de la trace a une distance donnee, interpole entre deux points.
+   * État de la trace à une distance donnée, interpolé entre deux points.
    *
-   * Sans interpolation, un segment se fermerait au premier point au-dela du
-   * kilometre, soit jusqu'a 10 m de trop a 36 km/h : l'allure affichee serait
-   * faussee de 1 % et les bornes ne tomberaient jamais rondes.
+   * Sans interpolation, un segment se fermerait au premier point au-delà du
+   * kilomètre, soit jusqu’à 10 m de trop a 36 km/h : l'allure affichée serait
+   * faussée de 1 % et les bornes ne tomberaient jamais rondes.
    */
   const at = (target: number) => {
     let i = 1;
@@ -219,6 +252,20 @@ export function computeSplits(track: ComputedTrack, step = 1000): Split[] {
       time: points[i - 1].t + f * (points[i].t - points[i - 1].t),
       ele: elevations.length ? elevations[i - 1] + f * (elevations[i] - elevations[i - 1]) : 0,
     };
+  };
+
+  /**
+   * Durée des pauses comprises entre deux index.
+   *
+   * Une tranche a cheval sur une pause afficherait sinon une allure absurde,
+   * la durée de la pause étant imputée au kilomètre en cours.
+   */
+  const pausedBetween = (from: number, to: number) => {
+    let paused = 0;
+    for (const start of track.segmentStarts) {
+      if (start > from && start <= to) paused += points[start].t - points[start - 1].t;
+    }
+    return paused;
   };
 
   const total = cumDist[cumDist.length - 1];
@@ -238,15 +285,18 @@ export function computeSplits(track: ComputedTrack, step = 1000): Split[] {
 
     const distance = to.dist - from.dist;
     if (distance > 1) {
-      const duration = to.time - from.time;
-      // Les altitudes sont deja lissees : on applique l'hysteresis seule, sans
-      // relisser une serie courte qui perdrait son relief.
-      const slice = [from.ele, ...elevations.slice(from.index, to.index), to.ele];
-      const { ascent, descent } = elevationProfile(slice, {
-        medianWindow: 1,
-        smoothWindow: 1,
-        threshold: 1,
-      });
+      const duration = to.time - from.time - pausedBetween(from.index, to.index);
+      // On ventile les incréments issus de l'unique passe d'hystérésis du
+      // calcul global. Relancer une hystérésis par kilomètre repartirait d'une
+      // altitude de référence neuve à chaque borne : la somme des tranches ne
+      // retomberait pas sur le D+ total affiché juste au-dessus, écart que
+      // l'utilisateur constate immédiatement.
+      let ascent = 0;
+      let descent = 0;
+      for (let i = from.index; i < to.index; i++) {
+        ascent += track.ascentSteps[i] ?? 0;
+        descent += track.descentSteps[i] ?? 0;
+      }
       splits.push({
         index: splits.length + 1,
         distance,
@@ -260,4 +310,76 @@ export function computeSplits(track: ComputedTrack, step = 1000): Split[] {
     if (isLast) break;
   }
   return splits;
+}
+
+/**
+ * Agrege plusieurs tronçons enregistres en une seule sortie.
+ *
+ * Une pause coupe la trace en tronçons. Concaténer simplement les points
+ * ferait compter le déplacement effectué pendant la pause : sur une journee de
+ * navette, la remontée en voiture ajouterait plusieurs dizaines de kilomètres
+ * et un dénivelé qui n'a pas ete pédalé. Chaque tronçon est donc calculé
+ * séparément, puis les totaux sont sommes.
+ */
+export function computeSegments(segments: TrackPoint[][], opts: MetricsOptions = {}): ComputedTrack {
+  const usable = segments.filter((s) => s.length > 0);
+  if (usable.length === 0) return computeTrack([], opts);
+  if (usable.length === 1) return computeTrack(usable[0], opts);
+
+  const parts = usable.map((s) => computeTrack(s, opts)).filter((p) => p.points.length > 0);
+  if (parts.length === 0) return computeTrack([], opts);
+
+  const points: TrackPoint[] = [];
+  const cumDist: number[] = [];
+  const elevations: number[] = [];
+  const speeds: number[] = [];
+  const ascentSteps: number[] = [];
+  const descentSteps: number[] = [];
+  const segmentStarts: number[] = [];
+  let offset = 0;
+
+  for (const part of parts) {
+    segmentStarts.push(points.length);
+    for (let i = 0; i < part.points.length; i++) {
+      points.push(part.points[i]);
+      cumDist.push(offset + part.cumDist[i]);
+      elevations.push(part.elevations[i] ?? 0);
+      speeds.push(part.speeds[i]);
+      ascentSteps.push(part.ascentSteps[i] ?? 0);
+      descentSteps.push(part.descentSteps[i] ?? 0);
+    }
+    offset += part.metrics.distance;
+  }
+
+  const sum = (f: (m: TrackMetrics) => number) => parts.reduce((a, p) => a + f(p.metrics), 0);
+  const distance = sum((m) => m.distance);
+  const duration = sum((m) => m.duration);
+  const movingTime = sum((m) => m.movingTime);
+  const ascent = sum((m) => m.ascent);
+  const ascentDistance = parts.reduce((a, p) => a + p.ascentDistance, 0);
+  const eles = parts.flatMap((p) => (p.metrics.minEle != null ? [p.metrics.minEle, p.metrics.maxEle!] : []));
+
+  return {
+    points,
+    cumDist,
+    elevations,
+    speeds,
+    ascentDistance,
+    ascentSteps,
+    descentSteps,
+    segmentStarts,
+    metrics: {
+      distance,
+      ascent,
+      descent: sum((m) => m.descent),
+      duration,
+      movingTime,
+      avgSpeed: duration > 0 ? distance / (duration / 1000) : 0,
+      avgMovingSpeed: movingTime > 0 ? distance / (movingTime / 1000) : 0,
+      maxSpeed: parts.reduce((a, p) => Math.max(a, p.metrics.maxSpeed), 0),
+      minEle: eles.length ? Math.min(...eles) : null,
+      maxEle: eles.length ? Math.max(...eles) : null,
+      avgClimbGrade: ascentDistance > 0 ? (ascent / ascentDistance) * 100 : 0,
+    },
+  };
 }

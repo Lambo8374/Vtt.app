@@ -3,9 +3,9 @@ import type { Route, Track } from './types';
 /**
  * Stockage local via IndexedDB.
  *
- * On evite `localStorage` : une sortie de trois heures a 1 Hz represente
- * environ 10 000 points, soit plusieurs mega-octets, bien au-dela du quota de
- * 5 Mo et surtout serialisee de facon synchrone, ce qui figerait l'interface
+ * On évite `localStorage` : une sortie de trois heures à 1 Hz représente
+ * environ 10 000 points, soit plusieurs méga-octets, bien au-delà du quota de
+ * 5 Mo et surtout sérialisée de façon synchrone, ce qui figerait l'interface
  * pendant l'enregistrement.
  */
 
@@ -72,7 +72,7 @@ export const routeStore = {
   },
 };
 
-/** Sauvegarde/reprise de l'enregistrement en cours apres fermeture accidentelle. */
+/** Sauvegarde/reprise de l'enregistrement en cours après fermeture accidentelle. */
 export const draftStore = {
   save: (value: unknown) => tx(STORE_STATE, 'readwrite', (s) => s.put(value, 'draft')),
   load: <T>() => tx<T | undefined>(STORE_STATE, 'readonly', (s) => s.get('draft')),

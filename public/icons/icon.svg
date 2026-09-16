@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Vtt.app">
+  <rect width="512" height="512" rx="112" fill="#2a78d6"/>
+  <!-- Profil de montagne : la silhouette qui resume le denivele. -->
+  <path d="M64 360 L176 200 L248 296 L320 168 L448 360 Z" fill="#ffffff" opacity="0.92"/>
+  <circle cx="150" cy="392" r="54" fill="none" stroke="#ffffff" stroke-width="20"/>
+  <circle cx="362" cy="392" r="54" fill="none" stroke="#ffffff" stroke-width="20"/>
+  <path d="M150 392 L232 392 L296 312 L362 392" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

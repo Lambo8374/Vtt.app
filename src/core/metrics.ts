@@ -293,7 +293,13 @@ export function computeSplits(track: ComputedTrack, step = 1000): Split[] {
       // l'utilisateur constate immédiatement.
       let ascent = 0;
       let descent = 0;
-      for (let i = from.index; i < to.index; i++) {
+      // Les bornes doivent partitionner exactement les index 1 a n-1 : une
+      // tranche s'arrete juste avant l'index d'ouverture de la suivante, et la
+      // derniere va jusqu'au dernier point inclus. Exclure ce dernier index
+      // perdait l'increment qui s'y trouve, et la colonne ne retombait plus
+      // sur le total.
+      const end = isLast ? to.index : to.index - 1;
+      for (let i = from.index; i <= end; i++) {
         ascent += track.ascentSteps[i] ?? 0;
         descent += track.descentSteps[i] ?? 0;
       }

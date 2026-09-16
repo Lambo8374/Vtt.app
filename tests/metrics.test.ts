@@ -244,3 +244,75 @@ describe('cohérence entre le total et les tranches', () => {
     expect(splits.reduce((s, x) => s + x.ascent, 0)).toBeCloseTo(track.metrics.ascent, 6);
   });
 });
+
+describe('partition exacte du dénivelé entre les tranches', () => {
+  /**
+   * Trace dont le tout dernier point porte un incrément d'hystérésis.
+   *
+   * C'est le cas limite : si la dernière tranche s'arrête avant le dernier
+   * index, cet incrément est perdu et la colonne ne retombe plus sur le total.
+   * Un jeu de données quelconque ne l'exerce qu'une fois sur trente environ —
+   * d'où la construction explicite, et l'assertion qui vérifie que le cas est
+   * bien couvert avant de tester ce qui nous intéresse.
+   */
+  function trackEndingOnAStep() {
+    const n = 1500;
+    const pts = syntheticTrack({ count: n, speed: 2, eleNoise: 0, seed: 77 });
+    const withStep = pts.map((p, i) => ({
+      ...p,
+      ele: 500 + i * 0.05 + (i === n - 1 ? 60 : 0),
+    }));
+    // Lissage neutralisé : le ressaut final doit rester sur le dernier point.
+    return computeTrack(withStep, {
+      medianWindow: 1,
+      smoothWindow: 1,
+      threshold: 5,
+      skipSmoothing: true,
+      skipStopDetection: true,
+    });
+  }
+
+  it('attribue bien un incrément au dernier point de la trace', () => {
+    const track = trackEndingOnAStep();
+    expect(track.ascentSteps[track.ascentSteps.length - 1]).toBeGreaterThan(0);
+  });
+
+  it('inclut le dernier point dans la dernière tranche', () => {
+    const track = trackEndingOnAStep();
+    const splits = computeSplits(track, 1000);
+    expect(splits.reduce((a, s) => a + s.ascent, 0)).toBeCloseTo(track.metrics.ascent, 6);
+  });
+
+  it('inclut le dernier point quand il termine une descente', () => {
+    const n = 1500;
+    const pts = syntheticTrack({ count: n, speed: 2, eleNoise: 0, seed: 78 });
+    const withStep = pts.map((p, i) => ({
+      ...p,
+      ele: 900 - i * 0.05 - (i === n - 1 ? 60 : 0),
+    }));
+    const track = computeTrack(withStep, {
+      medianWindow: 1,
+      smoothWindow: 1,
+      threshold: 5,
+      skipSmoothing: true,
+      skipStopDetection: true,
+    });
+    expect(track.descentSteps[track.descentSteps.length - 1]).toBeGreaterThan(0);
+    const splits = computeSplits(track, 1000);
+    expect(splits.reduce((a, s) => a + s.descent, 0)).toBeCloseTo(track.metrics.descent, 6);
+  });
+
+  // Balayage complémentaire : plusieurs tirages et longueurs, pour couvrir les
+  // bornes intermédiaires en plus du cas limite ci-dessus.
+  for (const seed of [101, 103, 105]) {
+    for (const count of [1234, 2071]) {
+      it(`somme des tranches = total (tirage ${seed}, ${count} points)`, () => {
+        const pts = syntheticTrack({ count, speed: 5, elevationGain: 250, eleNoise: 7, seed });
+        const track = computeTrack(pts);
+        const splits = computeSplits(track, 1000);
+        expect(splits.reduce((a, s) => a + s.ascent, 0)).toBeCloseTo(track.metrics.ascent, 6);
+        expect(splits.reduce((a, s) => a + s.descent, 0)).toBeCloseTo(track.metrics.descent, 6);
+      });
+    }
+  }
+});

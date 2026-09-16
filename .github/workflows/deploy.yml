@@ -1,0 +1,75 @@
+# Publie l'application sur GitHub Pages à chaque poussée.
+#
+# La géolocalisation exige une origine sécurisée : Pages fournit le HTTPS, sans
+# lequel l'application ne peut pas accéder à la position sur un téléphone.
+#
+# Prérequis, à faire une seule fois dans l'interface GitHub :
+#   Settings → Pages → Build and deployment → Source : « GitHub Actions ».
+name: Déploiement
+
+on:
+  push:
+    branches:
+      - main
+      # La branche de développement est publiée elle aussi, pour pouvoir
+      # installer l'application sur le téléphone avant toute fusion.
+      - claude/vtt-circuits-app-f0gput
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Deux poussées rapprochées ne doivent pas se déployer en parallèle, mais la
+# seconde ne doit pas non plus annuler un déploiement déjà engagé.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Construire et vérifier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tests unitaires du moteur de calcul
+        run: npm test
+
+      - name: Construction
+        run: npm run build
+
+      - name: Navigateur pour la vérification du maintien de l'écran
+        run: npx playwright install --with-deps chromium
+
+      # Le maintien de l'écran conditionne l'exploitabilité des traces : une
+      # régression ne doit pas être publiée.
+      - name: Vérification du maintien de l'écran
+        run: npm run test:e2e
+
+      # Empêche GitHub de faire passer le site par Jekyll, qui ignorerait les
+      # fichiers commençant par un tiret bas.
+      - run: touch dist/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Publier
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

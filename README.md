@@ -17,13 +17,69 @@ npm run build      # bundle de production dans dist/
 npm run test:e2e   # maintien de l'écran, dans un vrai navigateur
 ```
 
-**Cible : Android.** L'application s'installe depuis le navigateur
-(« Ajouter à l'écran d'accueil ») et fonctionne ensuite hors connexion.
+**Cible : Android.** Voir « Installer sur Android » ci-dessous.
 
 La géolocalisation exige une origine sécurisée : `localhost` en développement,
 **HTTPS** en production. Servi en HTTP sur une IP de réseau local, le navigateur
 refuse l'accès à la position — l'application le signale explicitement plutôt que
 de rester muette.
+
+## Installer sur Android
+
+L'application est publiée automatiquement sur GitHub Pages à chaque poussée, à
+l'adresse **https://lambo8374.github.io/Vtt.app/**
+
+### Une seule fois : activer la publication
+
+1. Ouvrir `Settings` → `Pages` dans le dépôt GitHub.
+2. Sous `Build and deployment`, choisir la source **GitHub Actions**.
+3. Onglet `Actions` : le déploiement se lance à la poussée suivante et prend
+   deux à trois minutes. Il construit, lance les 95 tests unitaires et vérifie
+   le maintien de l'écran dans un vrai navigateur avant de publier — une
+   régression n'est jamais mise en ligne.
+
+### Sur le téléphone
+
+1. Ouvrir **https://lambo8374.github.io/Vtt.app/** dans **Chrome**.
+2. Menu `⋮` → **Ajouter à l'écran d'accueil** (ou **Installer l'application**).
+3. Lancer l'application depuis l'icône : elle s'ouvre en plein écran, sans
+   barre d'adresse.
+4. Onglet **Rouler** → `Démarrer` : Chrome demande l'accès à la position.
+   Choisir **Pendant l'utilisation de l'application**.
+
+### Vérifier que tout est en place
+
+Au démarrage d'une sortie, deux pastilles doivent être vertes en haut du
+panneau : **Signal bon** et **Écran maintenu**. Si la seconde est rouge, voir
+« Maintien de l'écran ».
+
+### Réglages Android recommandés
+
+Ces deux réglages conditionnent la qualité des traces :
+
+- **Économiseur de batterie** : `Paramètres` → `Applications` → `Chrome` →
+  `Batterie` → **Sans restriction**. C'est de loin la cause la plus fréquente
+  d'un verrou d'écran refusé.
+- **Position** : `Paramètres` → `Localisation` → `Services de localisation` →
+  **Précision de la position Google** activée. Sans cela, la précision se
+  dégrade nettement sous couvert forestier.
+
+### Avant la première sortie hors réseau
+
+Le cache ne contient que les fonds de carte déjà affichés. Parcourez la zone de
+votre circuit sur la carte, en zoomant aux niveaux que vous utiliserez, pendant
+que vous avez du réseau. Les tuiles consultées restent ensuite disponibles hors
+connexion.
+
+### Vos données
+
+Tout reste sur le téléphone, dans le stockage du navigateur : rien n'est envoyé
+à un serveur. Exportez vos sorties en GPX pour les conserver ailleurs. Effacer
+les données de site de Chrome, ou désinstaller l'application, supprime les
+sorties enregistrées.
+
+Le site publié est public, mais il ne contient que l'application : aucune trace
+n'y transite.
 
 ## Ce que fait l'application
 

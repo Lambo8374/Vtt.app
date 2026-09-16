@@ -29,15 +29,23 @@ de rester muette.
 L'application est publiée automatiquement sur GitHub Pages à chaque poussée, à
 l'adresse **https://lambo8374.github.io/Vtt.app/**
 
-### La publication
+### Une seule fois : activer la publication
 
-Le déploiement se lance à chaque poussée et prend deux à trois minutes. Il
+1. Ouvrir **https://github.com/Lambo8374/Vtt.app/settings/pages**
+2. Sous `Build and deployment`, choisir la source **GitHub Actions**.
+3. Onglet `Actions` → `Déploiement` → `Run workflow`, sur la branche voulue.
+
+Cette activation ne peut pas être automatisée : créer un site Pages par l'API
+demande un droit d'administration sur le dépôt, que le jeton fourni aux
+workflows n'a pas et qu'un workflow ne peut pas s'accorder lui-même.
+
+### Ensuite
+
+Le déploiement se relance à chaque poussée et prend deux à trois minutes. Il
 construit, lance les 95 tests unitaires et vérifie le maintien de l'écran dans
 un vrai navigateur avant de publier : une régression n'est jamais mise en ligne.
-Pages est activé automatiquement au premier passage.
 
-Pour relancer une publication sans rien modifier : onglet `Actions` →
-`Déploiement` → `Run workflow`.
+Pour republier sans rien modifier : `Actions` → `Déploiement` → `Run workflow`.
 
 ### Sur le téléphone
 

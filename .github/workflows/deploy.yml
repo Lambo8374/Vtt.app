@@ -3,10 +3,14 @@
 # La géolocalisation exige une origine sécurisée : Pages fournit le HTTPS, sans
 # lequel l'application ne peut pas accéder à la position sur un téléphone.
 #
-# Aucune configuration manuelle n'est nécessaire : `configure-pages` active
-# Pages au premier passage. Si l'activation automatique est refusée par les
-# réglages du dépôt, il reste à la faire une fois dans
-# `Settings` → `Pages` → `Source` : « GitHub Actions ».
+# Prérequis, à faire une seule fois dans l'interface GitHub :
+#   `Settings` → `Pages` → `Build and deployment` → `Source` : « GitHub Actions »
+#
+# Cette activation ne peut pas être automatisée : créer un site Pages par l'API
+# demande un droit d'administration sur le dépôt, que le jeton fourni aux
+# workflows n'a pas et qu'un workflow ne peut pas s'accorder lui-même. Tenter
+# l'activation depuis `configure-pages` échoue sur « Resource not accessible by
+# integration » et fait échouer la construction avec elle.
 name: Déploiement
 
 on:
@@ -35,12 +39,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Active Pages si ce n'est pas déjà fait, et expose l'adresse publique.
-      - name: Préparer GitHub Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - uses: actions/setup-node@v4
         with:

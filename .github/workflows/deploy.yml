@@ -3,8 +3,10 @@
 # La géolocalisation exige une origine sécurisée : Pages fournit le HTTPS, sans
 # lequel l'application ne peut pas accéder à la position sur un téléphone.
 #
-# Prérequis, à faire une seule fois dans l'interface GitHub :
-#   Settings → Pages → Build and deployment → Source : « GitHub Actions ».
+# Aucune configuration manuelle n'est nécessaire : `configure-pages` active
+# Pages au premier passage. Si l'activation automatique est refusée par les
+# réglages du dépôt, il reste à la faire une fois dans
+# `Settings` → `Pages` → `Source` : « GitHub Actions ».
 name: Déploiement
 
 on:
@@ -33,6 +35,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Active Pages si ce n'est pas déjà fait, et expose l'adresse publique.
+      - name: Préparer GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/setup-node@v4
         with:

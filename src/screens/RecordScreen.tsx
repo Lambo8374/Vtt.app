@@ -5,7 +5,7 @@ import type { BasemapKey } from '../components/MapView';
 import { Hero, MetricTiles, Tile } from '../components/Stats';
 import { RouteFollower, distanceToNextTurn } from '../core/follow';
 import type { FollowState } from '../core/follow';
-import { formatDistance, formatElevation } from '../core/format';
+import { formatDistance, formatDuration, formatElevation } from '../core/format';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useRecorder } from '../hooks/useRecorder';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -67,18 +67,38 @@ export function RecordScreen({ routes, basemap, onBasemapChange, onSaved }: Reco
 
   const { computed, status } = recorder;
   const live = computed.metrics;
+  // Le moteur refuse d'enregistrer sous deux points : autant le dire dans la
+  // boîte plutôt que de laisser un bouton qui ne ferait rien.
+  const canSave = computed.points.length >= 2;
   const currentSpeed = computed.speeds.length ? computed.speeds[computed.speeds.length - 1] : 0;
 
   const nextTurn =
     followedRoute && followState ? distanceToNextTurn(followedRoute, followState.segment) : null;
 
+  /**
+   * Fin de sortie.
+   *
+   * Le relevé est arrêté avant toute chose : tant que la boîte de dialogue est
+   * ouverte, le cycliste a décidé que la sortie était finie, et chaque point
+   * supplémentaire fausserait la distance qu'il vient de lire. Une sortie trop
+   * courte n'est pas jetée en silence — la boîte s'ouvre quand même et explique
+   * pourquoi elle ne peut pas être enregistrée.
+   */
   const handleStop = () => {
-    if (computed.points.length < 2) {
-      void recorder.discard();
-      setArmed(false);
-      return;
-    }
+    recorder.pause();
     setAskName(true);
+  };
+
+  /** Annule une fin de sortie déclenchée par erreur. */
+  const resumeRide = () => {
+    setAskName(false);
+    recorder.resume();
+  };
+
+  const discardRide = () => {
+    setAskName(false);
+    void recorder.discard();
+    setArmed(false);
   };
 
   const confirmSave = async () => {
@@ -225,37 +245,62 @@ export function RecordScreen({ routes, basemap, onBasemapChange, onSaved }: Reco
           </label>
         </div>
 
-        {askName && (
-          <div className="panel">
-            <h2 className="panel__title">Enregistrer la sortie</h2>
-            <label className="field">
-              <span>Nom</span>
-              <input
-                type="text"
-                value={name}
-                placeholder={`Sortie du ${new Date().toLocaleDateString('fr-FR')}`}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </label>
-            <div className="row">
-              <button
-                className="btn btn--ghost"
-                onClick={() => {
-                  setAskName(false);
-                  void recorder.discard();
-                  setArmed(false);
-                }}
-              >
-                Supprimer
+      </div>
+
+      {/* Boîte de dialogue plutôt que bloc en fin de page : ajouté à la suite
+          des autres blocs, le formulaire s'affichait sous la carte et sous
+          toutes les mesures, hors écran. L'appui sur « Terminer » restait donc
+          sans effet visible. */}
+      {askName && (
+        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="fin-titre">
+          <div className="modal__card">
+            <h2 className="modal__title" id="fin-titre">
+              Sortie terminée
+            </h2>
+            <p className="modal__summary">
+              {formatDistance(live.distance)} · {formatElevation(live.ascent)} D+ ·{' '}
+              {formatDuration(live.movingTime)} en mouvement
+            </p>
+
+            {canSave ? (
+              <label className="field">
+                <span>Nom de la sortie</span>
+                <input
+                  type="text"
+                  value={name}
+                  autoFocus
+                  placeholder={`Sortie du ${new Date().toLocaleDateString('fr-FR')}`}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </label>
+            ) : (
+              <p className="modal__warning">
+                Cette sortie est trop courte pour être enregistrée : il n’y a pas assez de points GPS
+                exploitables.
+              </p>
+            )}
+
+            <div className="modal__actions">
+              {canSave && (
+                <button className="btn btn--primary" onClick={() => void confirmSave()}>
+                  Enregistrer
+                </button>
+              )}
+              <button className="btn" onClick={resumeRide}>
+                Continuer la sortie
               </button>
-              <button className="btn btn--primary" onClick={() => void confirmSave()}>
-                Enregistrer ({formatDistance(live.distance)})
+              <button className="btn btn--ghost modal__discard" onClick={discardRide}>
+                Supprimer sans enregistrer
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
+      {/* Les commandes du bas sont masquées pendant la boîte de dialogue :
+          laisser « Pause » et « Terminer » actifs derrière elle donnerait deux
+          jeux d'actions contradictoires. */}
+      {!askName && (
       <div className="controls">
         {status === 'idle' && (
           <button
@@ -289,6 +334,7 @@ export function RecordScreen({ routes, basemap, onBasemapChange, onSaved }: Reco
           </>
         )}
       </div>
+      )}
     </>
   );
 }

@@ -6,56 +6,16 @@
  * vidéo. Il est pourtant le plus critique de l'application — un écran qui
  * s'éteint troue la trace — et le plus facile à casser sans s'en apercevoir.
  *
- * L'API est instrumentée avant le chargement de la page, ce qui permet de
- * simuler une révocation par le système et un refus, deux cas impossibles à
- * provoquer autrement.
- *
- * Usage : npm run test:e2e
+ * L'API est instrumentée avant le chargement de la page : c'est le seul moyen
+ * de provoquer une révocation par le système et un refus du verrou.
  */
-import { spawn } from 'node:child_process';
-import { chromium } from 'playwright';
+import { PHONE, URL, stubTiles } from './lib.mjs';
 
-const URL = 'http://127.0.0.1:4173/';
-const failures = [];
+export const name = 'Maintien de l\'écran';
 
-function check(label, actual, expected) {
-  const ok = actual === expected;
-  console.log(`${ok ? 'OK  ' : 'ECHEC'}  ${label} : ${actual}${ok ? '' : ` (attendu ${expected})`}`);
-  if (!ok) failures.push(label);
-}
-
-async function waitForServer(timeoutMs = 20_000) {
-  const until = Date.now() + timeoutMs;
-  while (Date.now() < until) {
-    try {
-      const res = await fetch(URL);
-      if (res.ok) return true;
-    } catch {
-      // Le serveur n'écoute pas encore.
-    }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  return false;
-}
-
-async function launchBrowser() {
-  // Certains environnements fournissent Chromium hors de l'arborescence que
-  // Playwright interroge par défaut.
-  const executablePath = process.env.CHROMIUM_PATH;
-  return chromium.launch(executablePath ? { executablePath } : {});
-}
-
-const server = spawn('npx', ['vite', 'preview', '--port', '4173', '--host', '127.0.0.1'], {
-  stdio: 'ignore',
-  detached: false,
-});
-
-try {
-  if (!(await waitForServer())) throw new Error(`Serveur injoignable sur ${URL} — lancez « npm run build ».`);
-
-  const browser = await launchBrowser();
+export async function run({ browser, check }) {
   const ctx = await browser.newContext({
-    viewport: { width: 414, height: 896 },
+    viewport: PHONE,
     locale: 'fr-FR',
     permissions: ['geolocation'],
     geolocation: { latitude: 45, longitude: 6.1, accuracy: 6 },
@@ -90,15 +50,10 @@ try {
     Object.defineProperty(navigator, 'wakeLock', { value: api, configurable: true });
   });
 
+  await stubTiles(ctx);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  // Les tuiles distantes ne sont pas nécessaires ici.
-  await ctx.route('**/*.png', (r) =>
-    r.request().url().includes('tile')
-      ? r.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"/>' })
-      : r.continue(),
-  );
 
   await page.goto(URL, { waitUntil: 'networkidle' });
   await page.waitForTimeout(600);
@@ -140,13 +95,5 @@ try {
   check('repli annoncé comme tel', await badge(), 'Écran maintenu (secours)');
 
   check('aucune erreur de page', errors.length, 0);
-  await browser.close();
-} finally {
-  server.kill();
+  await ctx.close();
 }
-
-if (failures.length) {
-  console.error(`\n${failures.length} vérification(s) en échec : ${failures.join(', ')}`);
-  process.exit(1);
-}
-console.log('\nToutes les vérifications passent.');

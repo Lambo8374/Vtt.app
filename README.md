@@ -33,19 +33,24 @@ l'adresse **https://lambo8374.github.io/Vtt.app/**
 
 1. Ouvrir **https://github.com/Lambo8374/Vtt.app/settings/pages**
 2. Sous `Build and deployment`, choisir la source **GitHub Actions**.
-3. Onglet `Actions` → `Déploiement` → `Run workflow`, sur la branche voulue.
 
 Cette activation ne peut pas être automatisée : créer un site Pages par l'API
 demande un droit d'administration sur le dépôt, que le jeton fourni aux
 workflows n'a pas et qu'un workflow ne peut pas s'accorder lui-même.
 
-### Ensuite
+### La publication se fait depuis `main`
 
-Le déploiement se relance à chaque poussée et prend deux à trois minutes. Il
-construit, lance les 95 tests unitaires et vérifie le maintien de l'écran dans
-un vrai navigateur avant de publier : une régression n'est jamais mise en ligne.
+En activant Pages, GitHub crée un environnement `github-pages` qui n'autorise
+les déploiements que depuis la branche par défaut. **Une branche de travail ne
+peut donc pas publier** : elle est construite et vérifiée, mais le site n'est
+mis à jour qu'à la fusion dans `main`.
 
-Pour republier sans rien modifier : `Actions` → `Déploiement` → `Run workflow`.
+Le déploiement prend deux à trois minutes. Il construit, lance les 95 tests
+unitaires et vérifie le maintien de l'écran dans un vrai navigateur avant de
+publier : une régression n'est jamais mise en ligne.
+
+Pour republier sans rien modifier : `Actions` → `Déploiement` → `Run workflow`
+sur `main`.
 
 ### Sur le téléphone
 

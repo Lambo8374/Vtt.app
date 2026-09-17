@@ -17,8 +17,8 @@ on:
   push:
     branches:
       - main
-      # La branche de développement est publiée elle aussi, pour pouvoir
-      # installer l'application sur le téléphone avant toute fusion.
+      # Sur la branche de développement, le workflow construit et vérifie mais
+      # ne publie pas : seule la branche par défaut peut déployer vers Pages.
       - claude/vtt-circuits-app-f0gput
   workflow_dispatch:
 
@@ -73,6 +73,13 @@ jobs:
     name: Publier
     needs: build
     runs-on: ubuntu-latest
+    # L'environnement `github-pages`, cree par GitHub a l'activation de Pages,
+    # n'autorise les deploiements que depuis la branche par defaut. Sur une
+    # branche de travail, le job etait rejete avant meme de demarrer et
+    # affichait un echec rouge qui laissait croire a un probleme de code, alors
+    # que la construction et les tests etaient verts. On ne le lance donc que
+    # sur `main` : ailleurs, le workflow construit et verifie, sans publier.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

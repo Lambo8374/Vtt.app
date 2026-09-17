@@ -10,8 +10,9 @@
 import { createReporter, launchBrowser, startServer } from './lib.mjs';
 import * as wakeLock from './wake-lock.mjs';
 import * as finDeSortie from './fin-de-sortie.mjs';
+import * as suiviDeTrace from './suivi-de-trace.mjs';
 
-const checks = [wakeLock, finDeSortie];
+const checks = [wakeLock, finDeSortie, suiviDeTrace];
 const server = await startServer();
 const failed = [];
 

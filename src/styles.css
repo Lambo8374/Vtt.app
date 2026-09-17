@@ -355,6 +355,14 @@ label.field { display: block; margin-bottom: 10px; }
 }
 label.field > span { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
 
+.field__hint {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-top: 6px;
+}
+
 /* ---- Boite de dialogue ---- */
 
 /* Au-dessus de tout, y compris des controles Leaflet (z-index 1000) et du

@@ -1,0 +1,446 @@
+/* Jetons de couleur. Les valeurs du mode sombre sont choisies pour leur fond,
+   pas obtenues par inversion : une inversion mecanique casserait le contraste
+   des marques colorees. */
+:root {
+  color-scheme: light;
+  --surface-0: #f4f3f0;
+  --surface-1: #fcfcfb;
+  --surface-2: #eceae5;
+  --border: #d9d6cf;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #85837c;
+  --series-track: #e34948;
+  --series-route: #2a78d6;
+  --fill-route: rgba(42, 120, 214, 0.16);
+  --accent: #2a78d6;
+  --good: #1baf7a;
+  --warning: #eda100;
+  --danger: #e34948;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 6px 20px rgba(0, 0, 0, 0.05);
+  --radius: 12px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+    --surface-0: #111110;
+    --surface-1: #1a1a19;
+    --surface-2: #262624;
+    --border: #3a3a37;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8e85;
+    --series-track: #e66767;
+    --series-route: #3987e5;
+    --fill-route: rgba(57, 135, 229, 0.22);
+    --accent: #3987e5;
+    --good: #199e70;
+    --warning: #c98500;
+    --danger: #e66767;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface-0: #111110;
+  --surface-1: #1a1a19;
+  --surface-2: #262624;
+  --border: #3a3a37;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #8f8e85;
+  --series-track: #e66767;
+  --series-route: #3987e5;
+  --fill-route: rgba(57, 135, 229, 0.22);
+  --accent: #3987e5;
+  --good: #199e70;
+  --warning: #c98500;
+  --danger: #e66767;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--surface-0);
+  color: var(--text-primary);
+  /* Empeche le zoom par double-tap, qui declencherait une action a velo. */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  background: var(--surface-0);
+}
+
+.app__body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---- Navigation ---- */
+
+.tabbar {
+  display: flex;
+  border-top: 1px solid var(--border);
+  background: var(--surface-1);
+  /* Barre gestuelle des telephones recents. */
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.tabbar__item {
+  flex: 1;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 10px 4px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  /* Cible tactile confortable avec des gants. */
+  min-height: 56px;
+}
+
+.tabbar__item[aria-current='page'] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tabbar__icon { font-size: 20px; line-height: 1; }
+
+/* ---- Blocs ---- */
+
+.panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin: 12px;
+  padding: 14px;
+}
+
+.panel__title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.map {
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  background: var(--surface-2);
+}
+
+.map-holder {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Au-dessus des controles Leaflet (zIndex 1000) mais sous les infobulles. */
+.map-locate {
+  position: absolute;
+  right: 12px;
+  bottom: 28px;
+  z-index: 1001;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--accent);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.map-locate:disabled { opacity: 0.6; cursor: progress; }
+
+.map-wrap {
+  position: relative;
+  height: 46vh;
+  min-height: 240px;
+  border-bottom: 1px solid var(--border);
+}
+
+.map-wrap--tall { height: 60vh; }
+
+/* ---- Chiffres ---- */
+
+.hero {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 0 10px;
+}
+
+.hero__value {
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.hero__unit { font-size: 18px; color: var(--text-secondary); }
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.tile {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  /* La grille etire les tuiles a la meme hauteur ; la valeur est poussee vers
+     le bas pour que toutes les valeurs d'une rangee s'alignent, meme quand un
+     libelle tient sur deux lignes. */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.tile__label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.tile__value {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+  /* Une valeur qui passe a la ligne decale toute la rangee de tuiles. */
+  white-space: nowrap;
+}
+
+.tile__value--muted { color: var(--text-muted); font-weight: 500; }
+
+/* ---- Graphique ---- */
+
+.chart { width: 100%; display: block; touch-action: pan-y; }
+.chart__grid { stroke: var(--border); stroke-width: 1; }
+.chart__axis-text {
+  fill: var(--text-muted);
+  font-size: 10px;
+  /* Chiffres tabulaires : les graduations doivent s'aligner verticalement. */
+  font-variant-numeric: tabular-nums;
+}
+.chart__area { fill: var(--fill-route); }
+.chart__line { fill: none; stroke: var(--series-route); stroke-width: 2; stroke-linejoin: round; }
+.chart__crosshair { stroke: var(--text-secondary); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart__dot { fill: var(--series-route); stroke: var(--surface-1); stroke-width: 2; }
+.chart__empty { fill: var(--text-muted); font-size: 12px; }
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 6px 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  z-index: 500;
+}
+
+.tooltip__row { display: flex; gap: 10px; justify-content: space-between; }
+.tooltip__key { color: var(--text-secondary); }
+.tooltip__val { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.chart-wrap { position: relative; }
+
+/* ---- Commandes ---- */
+
+.controls {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface-1);
+  border-top: 1px solid var(--border);
+}
+
+.btn {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 600;
+  padding: 14px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  min-height: 52px;
+}
+
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn--danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn--ghost { background: transparent; }
+.btn--small { flex: 0 0 auto; min-height: 40px; padding: 8px 14px; font-size: 13px; }
+
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row--end { justify-content: flex-end; }
+.spacer { flex: 1; }
+
+input[type='text'], select {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  min-height: 44px;
+  width: 100%;
+}
+
+label.field { display: block; margin-bottom: 10px; }
+
+/* Interrupteur : la case et son libelle forment une seule cible tactile,
+   dimensionnee pour etre utilisable avec des gants. */
+.switch {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 0;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.switch input {
+  width: 22px;
+  height: 22px;
+  margin: 2px 0 0;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+
+.switch__label { display: block; font-weight: 600; font-size: 14px; }
+
+.switch__hint {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  line-height: 1.45;
+}
+label.field > span { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+
+/* ---- Etats ---- */
+
+.notice {
+  margin: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.notice--warn { border-left: 4px solid var(--warning); }
+.notice--error { border-left: 4px solid var(--danger); }
+.notice--info { border-left: 4px solid var(--accent); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+/* L'etat ne repose jamais sur la couleur seule : un point colore accompagne
+   toujours un libelle explicite. */
+.badge__dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.badge--good { color: var(--good); }
+.badge--warn { color: var(--warning); }
+.badge--bad { color: var(--danger); }
+
+.list { list-style: none; margin: 0; padding: 0; }
+
+.list__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.list__item:last-child { border-bottom: 0; }
+.list__main { flex: 1; min-width: 0; }
+.list__name { font-weight: 600; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list__meta { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+.empty { padding: 40px 20px; text-align: center; color: var(--text-muted); }
+
+table.splits { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.splits th, table.splits td { padding: 7px 6px; text-align: right; font-variant-numeric: tabular-nums; }
+table.splits th { color: var(--text-secondary); font-weight: 600; font-size: 11px; text-transform: uppercase; }
+table.splits th:first-child, table.splits td:first-child { text-align: left; }
+table.splits tbody tr { border-top: 1px solid var(--border); }
+
+/* ---- Marqueur de position ---- */
+
+.position-marker { background: none; border: 0; }
+
+.position-arrow {
+  width: 26px;
+  height: 26px;
+  background: var(--series-route);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  position: relative;
+}
+
+.position-arrow::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 9px solid var(--series-route);
+}
+
+.leaflet-container { font-family: var(--font); background: var(--surface-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

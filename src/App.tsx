@@ -49,6 +49,7 @@ export function App() {
       {tab === 'record' && (
         <RecordScreen
           routes={routes}
+          tracks={tracks}
           basemap={basemap}
           onBasemapChange={setBasemap}
           onSaved={() => {

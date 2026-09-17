@@ -10,7 +10,9 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { useRecorder } from '../hooks/useRecorder';
 import { useWakeLock } from '../hooks/useWakeLock';
 import type { WakeLockState } from '../hooks/useWakeLock';
-import type { Route } from '../core/types';
+import { buildRoute } from '../core/route';
+import { simplify } from '../core/simplify';
+import type { Route, Track } from '../core/types';
 
 const KEEP_SCREEN_ON_KEY = 'vtt-app.keepScreenOn';
 
@@ -25,12 +27,14 @@ function readKeepScreenOn(): boolean {
 
 export interface RecordScreenProps {
   routes: Route[];
+  /** Sorties déjà enregistrées, proposées au suivi au même titre qu'un circuit. */
+  tracks: Track[];
   basemap: BasemapKey;
   onBasemapChange: (k: BasemapKey) => void;
   onSaved: (id: string) => void;
 }
 
-export function RecordScreen({ routes, basemap, onBasemapChange, onSaved }: RecordScreenProps) {
+export function RecordScreen({ routes, tracks, basemap, onBasemapChange, onSaved }: RecordScreenProps) {
   const [armed, setArmed] = useState(false);
   const [followId, setFollowId] = useState<string>('');
   const [name, setName] = useState('');
@@ -51,7 +55,28 @@ export function RecordScreen({ routes, basemap, onBasemapChange, onSaved }: Reco
     }
   }, [keepScreenOn]);
 
-  const followedRoute = useMemo(() => routes.find((r) => r.id === followId) ?? null, [routes, followId]);
+  /**
+   * Circuit suivi, qu'il vienne de l'onglet « Créer » ou d'une sortie déjà
+   * roulée.
+   *
+   * Refaire une trace qu'on a enregistrée est l'usage le plus courant : exiger
+   * de la redessiner à la main dans l'éditeur n'aurait aucun sens. La trace est
+   * allégée avant conversion — une sortie de trois heures compte des milliers de
+   * points dont la quasi-totalité n'apporte rien au recalage, et les garder
+   * ralentirait chaque mise à jour de position.
+   */
+  const followedRoute = useMemo(() => {
+    if (!followId) return null;
+    const [kind, id] = followId.split(':');
+    if (kind === 'route') return routes.find((r) => r.id === id) ?? null;
+    const track = tracks.find((t) => t.id === id);
+    if (!track || track.points.length < 2) return null;
+    const points = simplify(
+      track.points.map((p) => ({ lat: p.lat, lon: p.lon, ele: p.ele })),
+      3,
+    );
+    return buildRoute(track.name, points, track.id);
+  }, [routes, tracks, followId]);
   const follower = useRef<RouteFollower | null>(null);
   const [followState, setFollowState] = useState<FollowState | null>(null);
 
@@ -70,6 +95,8 @@ export function RecordScreen({ routes, basemap, onBasemapChange, onSaved }: Reco
   // Le moteur refuse d'enregistrer sous deux points : autant le dire dans la
   // boîte plutôt que de laisser un bouton qui ne ferait rien.
   const canSave = computed.points.length >= 2;
+  // Une sortie d'un seul point ne constitue pas une trace à suivre.
+  const followableTracks = useMemo(() => tracks.filter((t) => t.points.length >= 2), [tracks]);
   const currentSpeed = computed.speeds.length ? computed.speeds[computed.speeds.length - 1] : 0;
 
   const nextTurn =
@@ -166,20 +193,10 @@ export function RecordScreen({ routes, basemap, onBasemapChange, onSaved }: Reco
           </div>
         )}
 
-        <div className="panel">
-          <div className="row" style={{ marginBottom: 6 }}>
-            <GpsBadge status={geo.status} accuracy={geo.point?.acc ?? null} />
-            {status !== 'idle' && <ScreenBadge wake={wake} enabled={keepScreenOn} />}
-            <span className="spacer" />
-            <span className="badge">
-              {recorder.pointCount} point{recorder.pointCount > 1 ? 's' : ''}
-            </span>
-          </div>
-
-          <Hero value={(currentSpeed * 3.6).toFixed(1)} unit="km/h" />
-          <MetricTiles metrics={live} compact />
-        </div>
-
+        {/* Le suivi passe avant les mesures : à vélo on ne fait pas défiler la
+            page. Sous le bloc des mesures, la distance restante et l'alerte de
+            sortie de trace tombaient hors écran, c'est-à-dire exactement là où
+            elles ne servent plus à rien. */}
         {followState && followedRoute && (
           <div className="panel">
             <h2 className="panel__title">Suivi de « {followedRoute.name} »</h2>
@@ -207,21 +224,56 @@ export function RecordScreen({ routes, basemap, onBasemapChange, onSaved }: Reco
         )}
 
         <div className="panel">
+          <div className="row" style={{ marginBottom: 6 }}>
+            <GpsBadge status={geo.status} accuracy={geo.point?.acc ?? null} />
+            {status !== 'idle' && <ScreenBadge wake={wake} enabled={keepScreenOn} />}
+            <span className="spacer" />
+            <span className="badge">
+              {recorder.pointCount} point{recorder.pointCount > 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <Hero value={(currentSpeed * 3.6).toFixed(1)} unit="km/h" />
+          <MetricTiles metrics={live} compact />
+        </div>
+
+        <div className="panel">
           <h2 className="panel__title">Profil de la sortie</h2>
           <ElevationChart distances={computed.cumDist} elevations={computed.elevations} />
         </div>
 
         <div className="panel">
           <label className="field">
-            <span>Suivre un circuit</span>
+            <span>Suivre une trace</span>
             <select value={followId} onChange={(e) => setFollowId(e.target.value)}>
-              <option value="">Aucun</option>
-              {routes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name} — {formatDistance(r.distance)}
-                </option>
-              ))}
+              <option value="">Aucune</option>
+              {routes.length > 0 && (
+                <optgroup label="Circuits créés">
+                  {routes.map((r) => (
+                    <option key={r.id} value={`route:${r.id}`}>
+                      {r.name} — {formatDistance(r.distance)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {followableTracks.length > 0 && (
+                <optgroup label="Sorties enregistrées">
+                  {followableTracks.map((t) => (
+                    <option key={t.id} value={`track:${t.id}`}>
+                      {t.name} — {formatDistance(t.metrics.distance)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
+            {/* Une liste vide doit dire pourquoi : « Aucune » seul laisse croire
+                à un défaut alors qu'il n'y a simplement rien à suivre. */}
+            {routes.length === 0 && followableTracks.length === 0 && (
+              <span className="field__hint">
+                Rien à suivre pour l’instant. Enregistrez une sortie, ou créez un circuit dans l’onglet
+                Créer — les deux apparaîtront ici.
+              </span>
+            )}
           </label>
           <label className="field">
             <span>Fond de carte</span>
